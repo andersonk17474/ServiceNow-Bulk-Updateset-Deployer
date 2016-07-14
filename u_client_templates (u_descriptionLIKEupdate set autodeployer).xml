@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unload unload_date="2016-07-14 18:41:20">
+<u_client_templates action="INSERT_OR_UPDATE">
+<sys_created_by>kevin.anderson</sys_created_by>
+<sys_created_on>2016-07-03 16:24:42</sys_created_on>
+<sys_id>21bc668b0f54ae00a95eb97ce1050e2b</sys_id>
+<sys_mod_count>20</sys_mod_count>
+<sys_updated_by>kevin.anderson</sys_updated_by>
+<sys_updated_on>2016-07-14 15:39:35</sys_updated_on>
+<u_description>update set autodeployer 
+client template for the previewed update sets </u_description>
+<u_name>previewed_update_set_list</u_name>
+<u_template>&lt;ul class="list-group"&gt;
+    &lt;% var grp_cntr = 0 %&gt;
+    &lt;% _.each(obj.models, function(v,k){ %&gt;
+        
+        &lt;li class="list-group-item" data-sys-id="&lt;%= v.get('update_set_sys_id') %&gt;"&gt;
+            &lt;div class="name"&gt;
+                &lt;a target="_blank" href="sys_remote_update_set.do?sys_id=&lt;%= v.get('update_set_sys_id') %&gt;"&gt;
+                    &lt;%= v.get('update_set_name') %&gt;
+                &lt;/a&gt;
+            &lt;/div&gt;
+            &lt;div class="clean-updates"&gt;Clean Updates: &lt;%= v.get('clean_updates') %&gt;&lt;/div&gt;
+            &lt;% var collisions = v.get('collisions') %&gt;
+            &lt;% if (collisions.length){ %&gt;
+                &lt;% grp_cntr = grp_cntr + 1; %&gt;
+                &lt;div class="panel-group" id="accordion&lt;%= grp_cntr %&gt;" role="tablist" aria-multiselectable="true"&gt;
+                  &lt;div class="panel panel-default"&gt;
+                    &lt;div class="panel-heading" role="tab" id="heading&lt;%= grp_cntr %&gt;"&gt;
+                      &lt;h4 class="panel-title"&gt;
+                        &lt;a role="button" data-toggle="collapse" data-parent="#accordion" href="#collapse&lt;%= grp_cntr %&gt;" aria-expanded="true" aria-controls="collapse&lt;%= grp_cntr %&gt;"&gt;
+                          &lt;div class="collisions"&gt;Collisions: &lt;%= collisions.length %&gt;&lt;/div&gt;
+                        &lt;/a&gt;
+                      &lt;/h4&gt;
+                    &lt;/div&gt;
+                    &lt;div id="collapse&lt;%= grp_cntr %&gt;" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="heading&lt;%= grp_cntr %&gt;"&gt;
+                      &lt;div class="panel-body"&gt;
+                        &lt;ul class="collisions-report"&gt;
+                            &lt;% _.each(collisions, function(v,k){ %&gt;
+                                &lt;li&gt;
+                                    &lt;a target="_blank" href="sys_update_preview_xml.do?sys_id=&lt;%= v.sys_id %&gt;"&gt;
+                                       &lt;span class="problem-type"&gt;Problem Type: &lt;%= v.problem_type %&gt;&lt;/span&gt;&lt;br /&gt;
+                                       &lt;span class="action clear-link-format"&gt;Action: &lt;%= v.disposition %&gt;&lt;/span&gt;&lt;br /&gt;
+                                       &lt;span class="description clear-link-format"&gt;Description: &lt;%= v.description %&gt;&lt;/span&gt;&lt;br /&gt;
+                                       &lt;span class="name clear-link-format"&gt;Name: &lt;%= v.target_name %&gt;&lt;/span&gt;&lt;br /&gt;
+                                       &lt;span class="sys-id clear-link-format"&gt;Sys Id: &lt;%= v.target_sys_id %&gt;&lt;/span&gt;
+                                   &lt;/a&gt; 
+                                &lt;/li&gt;
+                            &lt;% }); %&gt;   
+                        &lt;/ul&gt;
+                      &lt;/div&gt;
+                    &lt;/div&gt;
+                  &lt;/div&gt;
+                &lt;/div&gt; 
+            &lt;% } else { %&gt;
+               &lt;div class="collisions"&gt;Collisions: &lt;%= collisions.length %&gt;&lt;/div&gt;
+            
+            &lt;% } %&gt;
+        &lt;/li&gt;
+    &lt;% }); %&gt;
+&lt;/ul&gt;
+
+
+ </u_template>
+</u_client_templates>
+<u_client_templates action="INSERT_OR_UPDATE">
+<sys_created_by>kevin.anderson</sys_created_by>
+<sys_created_on>2016-07-12 19:53:54</sys_created_on>
+<sys_id>2f13b98a0fa06240a95eb97ce1050ef7</sys_id>
+<sys_mod_count>21</sys_mod_count>
+<sys_updated_by>kevin.anderson</sys_updated_by>
+<sys_updated_on>2016-07-13 17:58:49</sys_updated_on>
+<u_description>update set autodeployer 
+client template for the preview header controls - filter and print page</u_description>
+<u_name>preview_controls</u_name>
+<u_template>&lt;form class="preview-filter "&gt;
+    &lt;div class="title-wrap"&gt;
+        &lt;h3 class="panel-title"&gt;&lt;span class="count"&gt;&lt;%= obj.count%&gt;&lt;/span&gt;&amp;nbsp;Previewed Update Sets&lt;/h3&gt;
+    &lt;/div&gt;  
+    &lt;div class="pull-right preview-controls"&gt;
+        &lt;span class="print-icon"&gt;
+            &lt;img src="print-icon.png" title="Printable Version" alt="printable page"/&gt;
+        &lt;/span&gt;   
+        &lt;span class="minimize-collisions"&gt;
+            &lt;input class="option" name="minimize-collisions" type="checkbox"&gt; &lt;/input&gt;
+            &lt;label for="minimize-collisions"&gt;Minimize Collisions&lt;/label&gt;
+        &lt;/span&gt; 
+        &lt;span class="show-text-filter"&gt;
+            &lt;input class="option" name="show-filter" type="checkbox"&gt; &lt;/input&gt;
+            &lt;label for="show-filter"&gt;Show Text Filter&lt;/label&gt;
+        &lt;/span&gt; 
+        &lt;span class="collision-filter form-group"&gt;
+            &lt;select class="form-control filter" name="clean-dirty-results"&gt;
+                &lt;option value="all"&gt;All&lt;/option&gt;
+                &lt;option value="dirty"&gt;Only Dirty&lt;/option&gt;
+                &lt;option value="clean"&gt;Only Clean&lt;/option&gt;
+            &lt;/select&gt;
+            &lt;label class="" for="clean-dirty-results"&gt;Collision Filter&lt;/label&gt;
+        &lt;/span&gt; 
+    &lt;/div&gt;
+    &lt;div class="text-filter hidden"&gt;
+        &lt;div class="align-right"&gt;
+            &lt;input class="filter" name="text-filter" type="text" value=""&gt; &lt;/input&gt;
+            &lt;label for="text-filter"&gt;Filter by Name&lt;/label&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+&lt;/form&gt;</u_template>
+</u_client_templates>
+<u_client_templates action="INSERT_OR_UPDATE">
+<sys_created_by>kevin.anderson</sys_created_by>
+<sys_created_on>2016-07-03 17:59:40</sys_created_on>
+<sys_id>89b20f030f94ae00a95eb97ce1050e4a</sys_id>
+<sys_mod_count>5</sys_mod_count>
+<sys_updated_by>kevin.anderson</sys_updated_by>
+<sys_updated_on>2016-07-11 20:32:26</sys_updated_on>
+<u_description>update set autodeployer 
+client template for the retrieved update sets </u_description>
+<u_name>retrieved_update_set_list</u_name>
+<u_template>&lt;ul class="list-group"&gt;
+    &lt;% _.each(obj.models, function(v,k){ %&gt;
+        &lt;li class="list-group-item" data-sys-id="&lt;%= v.get('remote_sys_id') %&gt;"&gt;
+            &lt;a target="_blank" href="sys_remote_update_set.do?sys_id=&lt;%= v.get('remote_sys_id') %&gt;"&gt;
+                &lt;span class="name"&gt;&lt;%= v.get('name') %&gt;&lt;/span&gt;&lt;br /&gt;
+                &lt;span class="description"&gt;&lt;%= v.get('description') %&gt;&lt;/span&gt;
+            &lt;/a&gt;
+        &lt;/li&gt;
+    &lt;% }); %&gt;
+&lt;/ul&gt;</u_template>
+</u_client_templates>
+<u_client_templates action="INSERT_OR_UPDATE">
+<sys_created_by>kevin.anderson</sys_created_by>
+<sys_created_on>2016-07-13 20:29:14</sys_created_on>
+<sys_id>99d48b960f286240a95eb97ce1050eed</sys_id>
+<sys_mod_count>5</sys_mod_count>
+<sys_updated_by>kevin.anderson</sys_updated_by>
+<sys_updated_on>2016-07-14 17:27:50</sys_updated_on>
+<u_description>update set autodeployer 
+client template for the committed update sets </u_description>
+<u_name>committed_update_set_list</u_name>
+<u_template>&lt;ul class="list-group"&gt;
+    &lt;% var grp_cntr = 0 %&gt;
+    &lt;% _.each(obj.models, function(v,k){ %&gt;
+        &lt;li class="list-group-item" data-sys-id="&lt;%= v.get('update_set_sys_id') %&gt;"&gt;
+            &lt;a target="_blank" href="sys_remote_update_set.do?sys_id=&lt;%= v.get('update_set_sys_id') %&gt;"&gt;
+                &lt;span class="name"&gt;&lt;%= v.get('update_set_name') %&gt;&lt;/span&gt;&lt;br /&gt;
+                &lt;!--&lt;span class="retrieved-sys-id"&gt;&lt;%= v.get('update_set_sys_id') %&gt;&lt;/span&gt; --&gt;
+            &lt;/a&gt;
+            &lt;% logs = v.get('commit_logs') %&gt;
+            &lt;% if (logs.length){ %&gt;
+                &lt;% var grp_cntr = grp_cntr + 1; %&gt;
+                &lt;div class="panel-group" id="accordion&lt;%= grp_cntr %&gt;" role="tablist" aria-multiselectable="true"&gt;
+                  &lt;div class="panel panel-default"&gt;
+                    &lt;div class="panel-heading" role="tab" id="heading&lt;%= grp_cntr %&gt;"&gt;
+                      &lt;h4 class="panel-title"&gt;
+                        &lt;a role="button" data-toggle="collapse" data-parent="#accordion" href="#collapse&lt;%= grp_cntr %&gt;" aria-expanded="true" aria-controls="collapse&lt;%= grp_cntr %&gt;"&gt;
+                          &lt;div class="logs"&gt;Commits: &lt;%= logs.length %&gt;&lt;/div&gt;
+                        &lt;/a&gt;
+                      &lt;/h4&gt;
+                    &lt;/div&gt;
+                    &lt;div id="collapse&lt;%= grp_cntr %&gt;" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="heading&lt;%= grp_cntr %&gt;"&gt;
+                      &lt;div class="panel-body"&gt;
+                        &lt;ul class="logs-report"&gt;
+                            &lt;% _.each(logs, function(log,k){ %&gt;
+                                &lt;li&gt;
+                                    &lt;% var status = (log.status || '').toLowerCase() %&gt;
+                                    &lt;a target="_blank" href="sys_update_set.do?sys_id=&lt;%= v.get('local_sys_id') %&gt;"&gt;
+                                       &lt;span class="status &lt;%= status %&gt;"&gt;Status: &lt;%= log.status %&gt;&lt;/span&gt;&lt;br /&gt;
+                                       &lt;span class="message clear-link-format"&gt;Message: &lt;%= log.log %&gt;&lt;/span&gt;&lt;br /&gt;
+                                       &lt;span class="created clear-link-format"&gt;Created: &lt;%= log.created %&gt;&lt;/span&gt;&lt;br /&gt;
+                                   &lt;/a&gt; 
+                                &lt;/li&gt;
+                            &lt;% }); %&gt;   
+                        &lt;/ul&gt;
+                      &lt;/div&gt;
+                    &lt;/div&gt;
+                  &lt;/div&gt;
+                &lt;/div&gt; 
+            &lt;% }  %&gt;
+        &lt;/li&gt;
+    &lt;% }); %&gt;
+&lt;/ul&gt;</u_template>
+</u_client_templates>
+</unload>
