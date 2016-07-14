@@ -1,0 +1,10 @@
+<ul class="list-group">
+    <% _.each(obj.models, function(v,k){ %>
+        <li class="list-group-item" data-sys-id="<%= v.get('remote_sys_id') %>">
+            <a target="_blank" href="sys_remote_update_set.do?sys_id=<%= v.get('remote_sys_id') %>">
+                <span class="name"><%= v.get('name') %></span><br />
+                <span class="description"><%= v.get('description') %></span>
+            </a>
+        </li>
+    <% }); %>
+</ul>

@@ -1,0 +1,42 @@
+<ul class="list-group">
+    <% var grp_cntr = 0 %>
+    <% _.each(obj.models, function(v,k){ %>
+        <li class="list-group-item" data-sys-id="<%= v.get('update_set_sys_id') %>">
+            <a target="_blank" href="sys_remote_update_set.do?sys_id=<%= v.get('update_set_sys_id') %>">
+                <span class="name"><%= v.get('update_set_name') %></span><br />
+                <!--<span class="retrieved-sys-id"><%= v.get('update_set_sys_id') %></span> -->
+            </a>
+            <% logs = v.get('commit_logs') %>
+            <% if (logs.length){ %>
+                <% var grp_cntr = grp_cntr + 1; %>
+                <div class="panel-group" id="accordion<%= grp_cntr %>" role="tablist" aria-multiselectable="true">
+                  <div class="panel panel-default">
+                    <div class="panel-heading" role="tab" id="heading<%= grp_cntr %>">
+                      <h4 class="panel-title">
+                        <a role="button" data-toggle="collapse" data-parent="#accordion" href="#collapse<%= grp_cntr %>" aria-expanded="true" aria-controls="collapse<%= grp_cntr %>">
+                          <div class="logs">Commits: <%= logs.length %></div>
+                        </a>
+                      </h4>
+                    </div>
+                    <div id="collapse<%= grp_cntr %>" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="heading<%= grp_cntr %>">
+                      <div class="panel-body">
+                        <ul class="logs-report">
+                            <% _.each(logs, function(log,k){ %>
+                                <li>
+                                    <% var status = (log.status || '').toLowerCase() %>
+                                    <a target="_blank" href="sys_update_set.do?sys_id=<%= v.get('local_sys_id') %>">
+                                       <span class="status <%= status %>">Status: <%= log.status %></span><br />
+                                       <span class="message clear-link-format">Message: <%= log.log %></span><br />
+                                       <span class="created clear-link-format">Created: <%= log.created %></span><br />
+                                   </a> 
+                                </li>
+                            <% }); %>   
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div> 
+            <% }  %>
+        </li>
+    <% }); %>
+</ul>

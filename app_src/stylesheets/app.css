@@ -1,0 +1,314 @@
+/**  search_key:  update_set_auto_deploy  */
+
+.script-output-container .panel-body{
+    max-height: 450px;
+    overflow-y: auto;
+}
+.script-output-container .panel-body .log-entry{
+    font-size: 72%;
+    font-family: "Courier New", Courier, "Lucida Sans Typewriter", "Lucida Typewriter", monospace;
+    margin-bottom: 2px;
+}
+
+.script-output-container .panel-body .date,
+.script-output-container .panel-body .message{
+    word-wrap: break-word;
+}
+
+.script-output-container .panel-body .date{
+    padding-right: 5px;
+    color: #337ab7;
+}
+
+.script-output-container .panel-body .message{
+    padding-left: 5px;
+}
+
+.script-output-container .panel-title a{
+   font-size: 90%;
+   font-weight: 600;
+   color: red;
+   text-decoration
+}
+
+.right-panel .panel-body{
+    padding: 6px;
+    min-height: 30px;
+}
+
+.right-panel .panel-body .status-message{
+    margin-left: 12px;
+}
+
+.retrieved-update-sets .list-group-item
+.committed-update-sets .list-group-item{
+    font-size: 90%;
+    word-wrap: break-word;
+}    
+
+
+.retrieved-update-sets .list-group-item .name,
+.committed-update-sets .list-group-item .name{
+    font-weight: 600;
+}
+
+.retrieved-update-sets .list-group-item .description{
+    padding-left: 14px;
+}
+
+.retrieved-update-sets .list-group-item a:hover .description,
+.retrieved-update-sets .list-group-item a:active .description,
+.retrieved-update-sets .list-group-item a:link .description,
+.retrieved-update-sets .list-group-item a:visited .description{
+    color: #4f4f4f;
+    text-decoration: none;
+}
+
+.previewed-update-sets .panel-heading .title-wrap{
+    display: inline-block;
+}
+
+.previewed-update-sets .panel-heading .preview-controls{
+    font-size: 75%;
+    padding-top: 2px;
+}
+
+.previewed-update-sets .panel-heading .preview-controls input{
+    margin-left: 10px;
+    margin-top: -2px;
+}
+
+.previewed-update-sets .panel-heading label{
+    font-weight: normal;
+}
+    
+.previewed-update-sets .panel-heading .title-wrap .panel-title{
+    display: inline-block;
+}
+
+.previewed-update-sets .panel-heading .print-icon img{
+    width: 20px;
+    height: auto;
+    margin-right: 14px;
+    cursor: pointer;
+}
+
+.previewed-update-sets .panel-heading .text-filter{
+    font-size: 75%;
+    text-align: right;
+    clear: both;
+    padding-top: 4px;
+}
+
+.previewed-update-sets .panel-heading .text-filter input{
+    min-width: 40%;
+    margin-right: 8px;
+    
+}
+
+.previewed-update-sets .panel-heading .collision-filter select{
+    display: inline-block; 
+    width: 80px;
+    margin-left: 16px;
+    margin-right: 6px;
+    padding: 0px;
+    font-size: 95%;
+}
+.previewed-update-sets .panel-heading .collision-filter option{
+    padding: 4px 0 0 0;
+    font-size: 95%;
+}
+
+
+.committed-update-sets .list-group .panel-heading{
+    padding: 2px 4px;
+}
+
+.committed-update-sets ul.logs-report{
+    list-style-type: none;
+    padding-left: 6px;
+}
+
+.committed-update-sets .logs-report .status{
+    font-weight: bold;
+}
+
+.committed-update-sets .logs-report .status.info{
+    color: green;
+}
+
+.committed-update-sets .logs-report .status.warning{
+    color: orange;
+}
+
+.committed-update-sets .logs-report .status.error{
+    color: red;
+}
+
+.committed-update-sets ul.logs-report li{
+    font-weight: 90%;
+}
+
+a:hover .clear-link-format,
+a:active .clear-link-format,
+a:link .clear-link-format,
+a:visited .clear-link-format{
+    color: #4f4f4f;
+    text-decoration: none;
+}
+
+
+/** preview list styles */
+
+.previewed-update-sets .list-group-item > .name{
+    margin-left: 2px;
+    font-weight: bold;
+    font-size: 105%;
+    margin-bottom: 4px;
+
+}
+
+.previewed-update-sets .list-group-item .panel-heading{
+    padding: 3px;
+    background-color: #feffb5;
+}
+
+.previewed-update-sets .list-group-item .clean-updates{
+    border: 1px solid #DDD;
+    background-color: #caf7b8;
+    margin-bottom: 4px;
+    border-radius: 3px;
+    padding: 2px 4px;
+}
+
+.previewed-update-sets ul.collisions-report{
+    list-style-type: none;
+    padding-left: 6px;
+    font-size: 90%;
+}
+
+.previewed-update-sets .collisions-report span{
+    padding-left: 10px;
+}
+
+.previewed-update-sets .collisions-report a:hover .clear-link-format,
+.previewed-update-sets .collisions-report a:active .clear-link-format,
+.previewed-update-sets .collisions-report a:link .clear-link-format,
+.previewed-update-sets .collisions-report a:visited .clear-link-format{
+    color: #4f4f4f;
+    text-decoration: none;
+}
+
+.previewed-update-sets .collisions-report .problem-type{
+    font-weight: bold;
+    padding-left: 4px;
+}
+
+.previewed-update-sets .collisions-report li{
+    margin-bottom: 8px;
+}
+
+
+
+
+
+.panel-group .panel-title a{
+    text-decoration: none;
+}
+
+.run-parameters .remote-host h4{
+    padding-left: .65em;
+}
+
+.run-parameters .remote-host .form-group{
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.run-parameters .remote-host h4{
+    padding-left: 10px;
+}
+
+.run-parameters .delete-matching input,
+.run-parameters .commit-clean input{
+    margin-left: 1em;
+
+}
+
+
+.run-parameters .delete-matching label,
+.run-parameters .commit-clean label{
+    margin-left: 2em;
+}
+
+
+.run-parameters .start-deploy button{
+    min-width: 120px;
+    width: 20%;
+    margin-left: 1em;
+}
+
+.config-params .input-group.date input{
+    min-height: 2.2em;
+}
+
+.config-params label{
+    padding-left: 1em;
+}
+
+.config-params .glyphicon{
+  margin-left: 10px;
+  cursor: pointer;
+}
+
+.config-params .alert{
+    font-size: 85%;
+    padding: 8px;
+    margin-left: 12px;
+}
+
+
+.config-params .alert button{
+    min-width: 1.65em;
+    min-height: 1em;
+    font-size: 120%;
+    left: 1%;
+    top: 1%;
+}
+
+.config-params .name-contains{
+    margin-top: 32px;
+}
+
+.config-params .name-contains .form-group,
+.config-params .name-does-not-contain .form-group{
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+.config-params .name-does-not-contain{
+    margin-top: 8px;
+}
+
+.config-params .delete-matching,
+.config-params .commit-clean{
+    margin-top: 8px;
+}
+
+.form-group.has-error input,
+.form-group.has-error select,
+.form-group.has-error textarea{
+    background-color: #FFE2E2;
+}
+
+.panel-title a{
+    width: 100%;
+    display: block;
+}
+
+
+.right-panel .nav{
+    margin-top: -44px;
+    margin-left: 5%;
+    margin-bottom: 4px;
+}

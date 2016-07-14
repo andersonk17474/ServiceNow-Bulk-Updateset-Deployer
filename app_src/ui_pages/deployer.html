@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null">
+	 
+        <!-- prevent caching of application script -->
+        <g:evaluate var="jvar_stamp" jelly="true">  
+            var script_dttm = '';  
+            var gr = new GlideRecord('sys_ui_script');  
+            gr.orderByDesc('sys_updated_on');
+            gr.query()
+            if (gr.next()){  
+               script_dttm = gr.getDisplayValue('sys_updated_on');  
+            }  
+            script_dttm;  
+        </g:evaluate>  
+    
+    
+	<!-- add bootstrap css-->
+	<link href="bd138a980f8ce600a95eb97ce1050ec8.cssdbx" rel="stylesheet" type="text/css"></link> 
+	
+    <!-- add bootstrap date picker css -->
+    <link href="fe590e1c0f8ce600a95eb97ce1050eb1.cssdbx" rel="stylesheet" type="text/css"></link> 
+    
+    <!-- app.css -->
+    <link href="1773c2980f8ce600a95eb97ce1050e68.cssdbx" rel="stylesheet" type="text/css"></link>
+    
+    
+	<g:requires name="jquery-2.1.4.min.jsdbx" params="cache=${jvar_stamp}"/>
+    <script>
+       jQuery.noConflict();
+    </script>
+    <g:requires name="Moment.min.jsdbx" />
+	<g:requires name="bootstrap.min.jsdbx" />
+	<g:requires name="bootstrap-datetimepicker.jsdbx" />
+	<g:requires name="underscore.jsdbx" />
+	<g:requires name="backbone-min.jsdbx" />
+    <g:requires name="pubsub-min.jsdbx" />
+    <g:requires name="loglevel.jsdbx" />
+	<g:requires name="objectpath.jsdbx" />
+   
+	<g:requires name="update_set_autodeploy_application.jsdbx" params="cache=${jvar_stamp}"/>
+	
+	<div class="container-fluid" id="app">
+        <header class="row">
+            <div class="col-md-5 col-sm-12">
+                <div class="row remote-host">
+                    <div class="col-md-offset-1 col-md-10 col-sm-12" >
+                        <h1>Bulk Update Set Deployer</h1> 
+                    </div>
+                </div>    
+            </div>        
+        </header>
+        
+        <nav class="row message-center-top">
+            
+        </nav>
+        
+        <div class="row">
+            <div class="col-md-5 col-sm-12 left-panel">
+                <form action="" class="run-parameters">
+                    
+                        <div class="row remote-host">
+                            <div class="col-md-offset-1 col-md-10 col-sm-12" >
+                                <div class="panel panel-default">
+                                    <div class="panel-heading">
+                                        <h3 class="panel-title">Choose a Remote Host</h3>
+                                    </div>
+                                    <div class="panel-body">
+                                        <div class="row">
+                                            <div class="col-md-8 col-sm-11">
+                                                <div class="form-group">
+                                                    <label class="h4" for="remote-host">Choose a Remote Host </label>
+                                                    
+                                                    <select class="form-control" name="remote-host">
+                                                        <option value="">None</option>
+                                                       
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>	  
+                        </div>  
+                
+                        <div class="row config-params">
+                            <div class="col-md-offset-1 col-md-10 col-sm-12" >
+                                <div class="panel panel-default">
+                                    <div class="panel-heading">
+                                        <h3 class="panel-title">Configure Update Set Parameters</h3>
+                                    </div>
+                                    <div class="panel-body">
+                        
+                                        <div class="row">    
+                                          
+                                            <div class="col-sm-12 release-date">
+                                                <label class="control-label dark-label">Release Date </label>
+                                                
+                                               <div class="container">
+                                                    <div class="row">
+                                                        <div class="col-md-3 col-sm-6">
+                                                            <div class="form-group">
+                                                                <div class='input-group date' id='datetimepicker-release'>
+                                                                    <input type='text' class="form-control calendar-picker" name="release_date"/>
+                                                                    <span class="input-group-addon">
+                                                                        <span class="glyphicon glyphicon-calendar"></span>
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                       
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+
+                                        <div class="row">  
+                                            <div class="col-sm-12 created-after-date">
+                                               <label class="control-label dark-label">Created After Date </label>
+                                                
+                                               <div class="container">
+                                                    <div class="row">
+                                                        <div class="col-md-3 col-sm-6">
+                                                            <div class="form-group">
+                                                                <div class='input-group date' id='datetimepicker-createdafter'>
+                                                                    <input type='text' class="form-control calendar-picker" name="created_after_date" />
+                                                                    <span class="input-group-addon">
+                                                                        <span class="glyphicon glyphicon-calendar"></span>
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                       
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>           
+                                       
+                                             
+                                        <div class="row">  
+                                            <div class="col-sm-12 name-contains">
+                                               <label class="control-label dark-label">Name Contains <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span></label>
+                                               <div class="hidden alert alert-info alert-dismissible" role="alert">
+                                                  Comma delimited list of words to match on searching the update set names. Query will treat separate words as an OR condition in the search
+                                               </div> 
+                                               <div class="row">
+                                                    <div class="col-md-11 col-sm-12">
+                                                        <div class="form-group">
+                                                            <input type='text' class="form-control name-filter" name="name-contains" />
+                                                        </div>
+                                                    </div>
+                                                </div>       
+                                               
+                                            </div>
+                                        </div>  
+                                        
+                                        <div class="row">  
+                                            <div class="col-sm-12 name-does-not-contain">
+                                               <label class="control-label dark-label">Name $[AMP]nbsp;<strong>Does Not</strong>$[AMP]nbsp; Contain <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span></label>
+                                               <div class="hidden alert alert-info alert-dismissible" role="alert">
+                                                  Comma delimited list of words to ignore when searching the update set names. Query will treat separate words as an OR condition in the search
+                                               </div>  
+
+                                                <div class="row">
+                                                    <div class="col-md-11 col-sm-12">
+                                                        <div class="form-group">
+                                                            <input type='text' class="form-control name-filter" name="name-does-not-contain" />
+                                                        </div>
+                                                    </div>
+                                                   
+                                                </div>
+                                              
+                                            </div>
+                                        </div>                                         
+                                             
+                                        <div class="row">  
+                                            <div class="col-sm-12 delete-matching">
+                                                <div class="form-group">
+                                                    <div class="checkbox">
+                                                        <input class="" name="delete-matching" type="checkbox"> </input>
+                                                        <label for="delete-matching"> Delete Previously Retrieved Update Sets Matching Search </label>
+                                                    </div>
+                                                </div> 
+                                            </div>
+                                        </div>   
+
+                                        <div class="row">  
+                                            <div class="col-sm-12 commit-clean">
+                                                <div class="form-group">
+                                                    <div class="checkbox">
+                                                        <input class="" name="commit-clean" type="checkbox"> </input>
+                                                        <label for="commit-clean">Auto Commit Clean Update Sets After Preview </label>
+                                                    </div>
+                                                </div> 
+                                            </div>
+                                        </div>                                           
+                                    </div>
+                                </div>
+                            </div>	  
+                        </div>  
+                        
+                        <div class="row start-deploy">
+                            <div class="col-md-offset-1 col-md-10 col-sm-12" >
+                                <div class="panel panel-default">
+                                    <div class="panel-heading">
+                                        <h3 class="panel-title">Begin Deployment</h3>
+                                    </div>
+                                    <div class="panel-body">
+                                        <button type="button" class="btn btn-primary" value="Start">Start</button>
+                                    </div>
+                                </div>
+                            </div>	  
+                        </div>
+                    
+                </form>
+
+                <div class="row script-output-container">
+                    <div class="col-sm-12" >
+                        <nav class="row ">
+                            <!-- example accordion -->
+                            <div class="panel-group script-output-panel col-md-offset-1 col-md-10 col-sm-12" id="accordion1" role="tablist" aria-multiselectable="true">
+                                <div class="panel panel-default">
+                                <div class="panel-heading" role="tab" id="headingOne">
+                                  <h4 class="panel-title">
+                                    <a role="button" data-toggle="collapse" data-parent="#accordion1" href="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                                      Script Output
+                                    </a>
+                                  </h4>
+                                </div>
+                                <div id="collapseOne" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="headingOne">
+                                  <div class="panel-body">
+                                       
+                                  </div>
+                                </div>
+                                </div>
+                            </div>
+                        
+                        
+                        </nav>
+                     </div>    
+                </div>
+            
+            </div> <!-- end left half of app main display -->
+            <div class="col-md-7 col-sm-12 right-panel">
+                <ul class="nav nav-pills">
+                  <li class="retrieved active" data-panel-name="retrieved-update-sets"><a href="#">Retrieved</a></li>
+                  <li class="previewed" data-panel-name="previewed-update-sets"><a href="#">Previewed</a></li>
+                  <li class="committed" data-panel-name="committed-update-sets"><a href="#">Committed</a></li>
+                </ul>
+            
+            
+                <div class="col-md-11 col-sm-12 retrieved-update-sets output-container">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title"><span class="count"></span>Retrieved Update Sets</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="row">
+                                <div class="col-sm-12">
+                                    <div class="output">
+                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-11 col-sm-12 hidden previewed-update-sets output-container">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title"><span class="count"></span>Previewed Update Sets</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="row">
+                                <div class="col-sm-12">
+                                    <div class="output">
+                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="col-md-11 col-sm-12 hidden committed-update-sets output-container">
+                    <div class="panel panel-default">
+                        <div class="panel-heading">
+                            <h3 class="panel-title"><span class="count"></span>Committed Update Sets</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="row">
+                                <div class="col-sm-12">
+                                    <div class="output">
+                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            
+            </div> <!-- end right half of app main display -->
+        </div>
+        
+        <footer class="row col-md-offset-1 col-md-4 col-sm-12">
+            <div id="printable-area" class="hidden"></div>
+        </footer>
+	</div>
+	
+	
+</j:jelly>

@@ -1,0 +1,52 @@
+<ul class="list-group">
+    <% var grp_cntr = 0 %>
+    <% _.each(obj.models, function(v,k){ %>
+        
+        <li class="list-group-item" data-sys-id="<%= v.get('update_set_sys_id') %>">
+            <div class="name">
+                <a target="_blank" href="sys_remote_update_set.do?sys_id=<%= v.get('update_set_sys_id') %>">
+                    <%= v.get('update_set_name') %>
+                </a>
+            </div>
+            <div class="clean-updates">Clean Updates: <%= v.get('clean_updates') %></div>
+            <% var collisions = v.get('collisions') %>
+            <% if (collisions.length){ %>
+                <% grp_cntr = grp_cntr + 1; %>
+                <div class="panel-group" id="accordion<%= grp_cntr %>" role="tablist" aria-multiselectable="true">
+                  <div class="panel panel-default">
+                    <div class="panel-heading" role="tab" id="heading<%= grp_cntr %>">
+                      <h4 class="panel-title">
+                        <a role="button" data-toggle="collapse" data-parent="#accordion" href="#collapse<%= grp_cntr %>" aria-expanded="true" aria-controls="collapse<%= grp_cntr %>">
+                          <div class="collisions">Collisions: <%= collisions.length %></div>
+                        </a>
+                      </h4>
+                    </div>
+                    <div id="collapse<%= grp_cntr %>" class="panel-collapse collapse in" role="tabpanel" aria-labelledby="heading<%= grp_cntr %>">
+                      <div class="panel-body">
+                        <ul class="collisions-report">
+                            <% _.each(collisions, function(v,k){ %>
+                                <li>
+                                    <a target="_blank" href="sys_update_preview_xml.do?sys_id=<%= v.sys_id %>">
+                                       <span class="problem-type">Problem Type: <%= v.problem_type %></span><br />
+                                       <span class="action clear-link-format">Action: <%= v.disposition %></span><br />
+                                       <span class="description clear-link-format">Description: <%= v.description %></span><br />
+                                       <span class="name clear-link-format">Name: <%= v.target_name %></span><br />
+                                       <span class="sys-id clear-link-format">Sys Id: <%= v.target_sys_id %></span>
+                                   </a> 
+                                </li>
+                            <% }); %>   
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div> 
+            <% } else { %>
+               <div class="collisions">Collisions: <%= collisions.length %></div>
+            
+            <% } %>
+        </li>
+    <% }); %>
+</ul>
+
+
+ 
