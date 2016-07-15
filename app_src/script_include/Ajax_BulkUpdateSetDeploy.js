@@ -424,13 +424,25 @@ Ajax_BulkUpdateSetDeploy.prototype = Object.extendsObject(AbstractAjaxProcessor,
      
     */
     getTimeStamp : function(){
-        
-        var datetime = gs.nowDateTime();
-        var date = datetime.substring(0,10);
-        var time = datetime.substring(11);
-        var result = {'date' : date, 'time': time, 'datetime': datetime};
+        var result = {};
         var json = new JSON();
-        
+        try {
+            var datetime = gs.nowDateTime();
+            var usd = new BulkUpdateSetDeployer();
+            if (usd.isValidDateTime(datetime)) {
+
+                var date = datetime.substring(0, 10);
+                var time = datetime.substring(11);
+                var result = {'date': date, 'time': time, 'datetime': datetime};
+
+            }
+            else{
+                throw new Error('Invalid system date format. Expected system date time format: "yyyy-MM-dd HH:mm:ss". Check Date and Time format in user settings');
+            }
+        }
+        catch(e){
+            result.error = e.message;
+        }
         return json.encode(result);
         
     },

@@ -24,6 +24,13 @@
     padding-left: 5px;
 }
 
+.script-output-container .panel-body .message.warn{
+	color: orange;
+}
+.script-output-container .panel-body .message.error{
+	color: red;
+}	
+
 .script-output-container .panel-title a{
    font-size: 90%;
    font-weight: 600;

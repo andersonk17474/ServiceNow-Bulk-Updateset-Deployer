@@ -79,12 +79,13 @@ var common = {
        send message to the UI log view
       @method clientLog
       @param {string} msg
+	  @param {string|boolean} state
     */
-    clientLog : function(msg){
-        // send to browser console
+    clientLog : function(msg, state){
+		// send to browser console
         this.debug(msg);
         // send message to the user display script output
-        PubSub.publish( 'LOG', {'message': msg});
+        PubSub.publish( 'LOG', {'message': msg, 'state': state});
     },
     
     /**
@@ -457,12 +458,16 @@ var RunParamsForm = Backbone.View.extend({
         var callback = function(response){
             common.debug('recieved: '+JSON.stringify(response));
             var data = common.extractJSON(response);
-            
-            if (data && _.has(data, 'date') && _.has(data, 'time')){
-                common.debug(data.datetime);
-                common.set('START_TIME', data);
-                PubSub.publish('FETCH_UPDATE_SETS', {'search_params': common.get('search_params')});
-                PubSub.publish( 'NAV.SELECT', {'tab_name': 'retrieved'});
+            if (_.keys(data).length) {
+                if (_.has(data, 'error') && _.isString(data.error) && data.error.length){
+                    common.clientLog('Error: unable to get system datetime: '+ data.error, 'error');
+                }
+                else if ( _.has(data, 'date') && _.has(data, 'time')) {
+                    common.debug(data.datetime);
+                    common.set('START_TIME', data);
+                    PubSub.publish('FETCH_UPDATE_SETS', {'search_params': common.get('search_params')});
+                    PubSub.publish('NAV.SELECT', {'tab_name': 'retrieved'});
+                }
             }
         
         };
@@ -677,18 +682,21 @@ var ScriptCollection = Backbone.Collection.extend({
       add 1 or more entries to the script output area of the app
       @method addRecords
       @param {array|string} logs_msgs
+	  @param {string} state error, warn, info
     */
-    addRecords : function(log_msgs){
-        if (_.isArray(log_msgs)){
+    addRecords : function(log_msgs, state){
+        
+		if (_.isArray(log_msgs)){
             _.each(log_msgs, function (v,k){
                 var model = new Backbone.Model(v);
+				model.set('state', 'info');
                 this.push(model);
             }, this);
         }
         else if (_.isString(log_msgs) && log_msgs.length){
             // service now DB is pacific time, we are EST time, substract 3 hr
             var dttm = new moment().subtract(3, 'hours').format(common.get('SNOW_DATE_FORMAT'));
-            var model = new Backbone.Model({'created' : dttm, 'message' : log_msgs});
+            var model = new Backbone.Model({'created' : dttm, 'message' : log_msgs, 'state' : (state||'info')});
             this.push(model);
         }
         
@@ -719,7 +727,15 @@ var ScriptOutput = Backbone.View.extend({
         // pubsub listeners
         PubSub.subscribe( 'LOG', function(msg, data){
             if (_.keys(data).length && _.has(data, 'message')){
-                context.collection.addRecords(data.message);
+                var state = 'info';
+				if (_.has(data, 'state') && _.isString(data.state) && _.indexOf( ['warn', 'error'], data.state.toLowerCase()) >= 0){
+					state = data.state.toLowerCase();
+				}
+				if (_.isBoolean(data.state) && data.state){
+					state = 'error';
+				}
+				
+				context.collection.addRecords(data.message, state);
                 context.render();
             }
         });
@@ -744,7 +760,7 @@ var ScriptOutput = Backbone.View.extend({
         models.reverse();
         _.each(models, function(v,k){
             var $frag = $j('<div>').addClass('log-entry row');
-            $frag.append('<div class="col-xs-4 date">'+v.get('created')+'</div><div class="message col-xs-8">'+v.get('message')+'</div>')
+            $frag.append('<div class="col-xs-4 date">'+v.get('created')+'</div><div class="message '+v.get('state')+' col-xs-8">'+v.get('message')+'</div>')
             this.$el.append($frag);
         }, this);
     },
@@ -877,7 +893,7 @@ var RetreivedUSCollection = UpdateSetCollection.extend({
                 else{
                     // no progress workers started, - no records found to be deleted
                     // start the update set retrieve proccess
-                    common.clientLog('No matching records found to delete');
+                    common.clientLog('No matching records found to delete', 'warn');
                     context.gaFetch();
                 }
             }
@@ -911,7 +927,7 @@ var RetreivedUSCollection = UpdateSetCollection.extend({
                 context.workerCompleted('retrieve', data.worker_id);
             }
             else{
-                common.log.error('Missing attribute from response data object - "worker_id"');
+                common.clientLog('Invalid Ajax response: missing attribute from response data object - "worker_id"', 'error');
             }
 
         };
@@ -1191,7 +1207,7 @@ var CommittedUSCollection = UpdateSetCollection.extend({
                 context.gaFetch();
                 }
                 else{
-                    common.clientLog('No clean update sets found for commit');
+                    common.clientLog('No clean update sets found for commit', 'warn');
                     PubSub.publish( 'TOGGLE_START_BUTTON');
                 }
             }
@@ -1240,7 +1256,7 @@ var CommittedUSCollection = UpdateSetCollection.extend({
                     }
                     else{
                         model.set('committed', false);
-                        common.clientLog('NOT Committed: '+model.get('update_set_name'));
+                        common.clientLog('NOT Committed: '+model.get('update_set_name'), 'warn');
                     }
 
                 }, context);
@@ -1252,7 +1268,7 @@ var CommittedUSCollection = UpdateSetCollection.extend({
                     context.workersCompleted(progress_workers, transaction_id, workers_completed_callback);
                 }
                 else{
-                    common.clientLog('No update set commit progress workers returned');
+                    common.clientLog('No update set commit progress workers returned', 'warn');
                     PubSub.publish( 'TOGGLE_START_BUTTON');
                 }
             }

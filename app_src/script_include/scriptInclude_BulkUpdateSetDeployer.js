@@ -704,13 +704,20 @@ BulkUpdateSetDeployer.prototype = {
       @returns {boolean}
     */
     isValidDateTime : function(date, time){
-        result = false;
+        var result = false;
+        var parse_failed = false;
         var format = 'yyyy-MM-dd HH:mm:ss';
         if (JSUtil.notNil(date) && _.isString(date)){
             var gdt = GlideDateTime();
             if (date.trim().length > 10 ){
-                gdt.setValueUTC(date.trim(), format);
-                //gs.print('date test:'+date.trim());
+                try {
+                    gdt.setValueUTC(date.trim(), format);
+                    //gs.print('date test:'+date.trim());
+                }
+                catch(e){
+                    gs.log('Error: '+ e.message+' - isValidDateTime', this.type);
+                    parse_failed = true;
+                }
             }
             else{
                 if (JSUtil.nil(time)){
@@ -719,10 +726,10 @@ BulkUpdateSetDeployer.prototype = {
                 gdt.setValueUTC((date+' '+time).trim(), format);
                 //gs.print('date test:'+(date+' '+time).trim());
             }
-            if (gdt.isValid()){
+            if (!parse_failed && gdt.isValid()){
                 result = true;
             }
-        }    
+        }
         return result;
     },
     
