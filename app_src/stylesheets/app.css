@@ -126,6 +126,65 @@
     font-size: 95%;
 }
 
+.previewed-update-sets .panel-heading .commit-clean button{
+    margin-left: 8px;
+    padding: 2px 5px;
+    font-size: 95%;
+    margin-top: -2px;
+}
+
+.previewed-update-sets .panel-heading .commit-clean button.btn-primary:disabled{
+    background-color: #aeb1b3;
+    border-color: #8d9094;
+    color: #141517;
+    cursor: not-allowed;
+}
+
+.previewed-update-sets .panel-heading .commit-clean.auto-commit-option-on{
+    display: none;
+}
+
+.previewed-update-sets .panel[data-collision-filter-mode="clean"] .hide-clean,
+.previewed-update-sets .panel[data-collision-filter-mode="dirty"] .hide-dirty,
+.previewed-update-sets .panel[data-collision-filter-mode="all"] .hide-both{
+    display: none;
+}
+
+.previewed-update-sets .ordering-controls .glyphicon,
+.previewed-update-sets .ordering-controls .remove-item{
+    padding: 2px 1px 1px 2px;
+    font-size: 50%;
+    margin-top: -4px;
+    background-color: #f3f3f3;
+}
+
+.previewed-update-sets .ordering-controls .glyphicon-chevron-down{
+    padding-top: 3px;
+    padding-right: 2px;
+}
+
+.previewed-update-sets .ordering-controls .remove-item{
+    position: relative;
+    height: 17px;
+    width: 17px;
+    margin-top: -2px;
+}
+
+.previewed-update-sets .ordering-controls .remove-item .glyphicon-plus{
+    position: absolute;
+    top: 0.4em;
+    left: 0;
+    font-size: 150%;
+    -webkit-transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    transform: rotate(45deg);
+}
+
+.previewed-update-sets .ordering-controls button:disabled{
+    visibility: hidden;
+}
+
+
 
 .committed-update-sets .list-group .panel-heading{
     padding: 2px 4px;
@@ -306,6 +365,10 @@ a:visited .clear-link-format{
 .form-group.has-error select,
 .form-group.has-error textarea{
     background-color: #FFE2E2;
+}
+
+.form-group.has-error select:disabled{
+    background-color: #FFE2E2 !important;
 }
 
 .panel-title a{

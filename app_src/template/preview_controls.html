@@ -1,24 +1,32 @@
-<form class="preview-filter ">
+<form class="preview-filter" >
     <div class="title-wrap">
         <h3 class="panel-title"><span class="count"><%= obj.count%></span>&nbsp;Previewed Update Sets</h3>
     </div>  
-    <div class="pull-right preview-controls">
+    <div class="pull-right preview-controls ">
         <span class="print-icon">
             <img src="print-icon.png" title="Printable Version" alt="printable page"/>
         </span>   
-        <span class="minimize-collisions">
+        <span class="minimize-collisions hide-clean">
             <input class="option" name="minimize-collisions" type="checkbox"> </input>
             <label for="minimize-collisions">Minimize Collisions</label>
+        </span> 
+        <span class="commit-clean hide-dirty hide-both auto-commit-option-<%= obj.auto_commit %>">
+            <button type="button" class="btn btn-primary option" name="commit-clean" disabled="disabled">Commit</button>
+            
         </span> 
         <span class="show-text-filter">
             <input class="option" name="show-filter" type="checkbox"> </input>
             <label for="show-filter">Show Text Filter</label>
         </span> 
         <span class="collision-filter form-group">
+            <% var all_sel_attr = "", dirty_sel_attr = "", clean_sel_attr = "";  %>
+            <% if (obj.collision_filter_mode === "all"){ all_sel_attr = 'selected="selected"' } %>
+            <% if (obj.collision_filter_mode === "dirty"){ dirty_sel_attr = 'selected="selected"' } %>
+            <% if (obj.collision_filter_mode === "clean"){ clean_sel_attr = 'selected="selected"' } %>
             <select class="form-control filter" name="clean-dirty-results">
-                <option value="all">All</option>
-                <option value="dirty">Only Dirty</option>
-                <option value="clean">Only Clean</option>
+                <option <%= all_sel_attr %> value="all">All</option>
+                <option <%= dirty_sel_attr %> value="dirty">Only Dirty</option>
+                <option <%= clean_sel_attr %> value="clean">Only Clean</option>
             </select>
             <label class="" for="clean-dirty-results">Collision Filter</label>
         </span> 

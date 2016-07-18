@@ -1,12 +1,22 @@
 <ul class="list-group">
     <% var grp_cntr = 0 %>
+    <% var hide_controls_class = ((obj.models.length === 1)?'hidden':'') %>
     <% _.each(obj.models, function(v,k){ %>
-        
+        <% var disable_up_control_attr = ((obj.models.length > 1 && k === 0 )?'disabled="disabled"':'') %>
+        <% var disable_down_control_attr = ((obj.models.length > 1 && k === (obj.models.length-1) )?'disabled="disabled"':'') %>
         <li class="list-group-item" data-sys-id="<%= v.get('update_set_sys_id') %>">
             <div class="name">
                 <a target="_blank" href="sys_remote_update_set.do?sys_id=<%= v.get('update_set_sys_id') %>">
                     <%= v.get('update_set_name') %>
                 </a>
+                <div class="ordering-controls hide-dirty hide-both pull-right <%= hide_controls_class %>">
+                    <button <%= disable_up_control_attr %> title="Move up" class="glyphicon glyphicon-chevron-up" data-action="up" aria-hidden="true"></button>
+                    <button <%= disable_down_control_attr %> title="Move down" class="glyphicon glyphicon-chevron-down" data-action="down" aria-hidden="true"></button>
+                    <button title="Remove" class="remove-item" data-action="remove">
+                        <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>
+                    </button>
+                </div>
+               
             </div>
             <div class="clean-updates">Clean Updates: <%= v.get('clean_updates') %></div>
             <% var collisions = v.get('collisions') %>

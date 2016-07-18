@@ -137,6 +137,30 @@ var common = {
         return result;
     },
     
+    /**
+      query servicenow for current system time
+      @method getSystemTimeStamp
+      @param {function} callback
+    */
+    getSystemTimeStamp : function(callback){
+        if (_.isFunction(callback)){
+        var ga = new GlideAjax('Ajax_BulkUpdateSetDeploy');
+            ga.addParam('sysparm_name','getTimeStamp');
+            ga.getXML(function(response){
+                var data = common.extractJSON(response);
+                if (_.keys(data).length) {
+                    if (_.has(data, 'error') && _.isString(data.error) && data.error.length){
+                        common.clientLog('Error: unable to get system datetime: '+ data.error, 'error');
+                    }
+                    else{
+                        callback(data);
+                    }
+                }
+            });
+        }    
+    },
+    
+    
 };
 
 /**
@@ -231,9 +255,8 @@ var Application = Backbone.View.extend({
         
         var context = this;
         
-                
+        this.views.script_output = new ScriptOutput({'el': this.$el.find('.script-output-container .panel-body')});        
         this.views.run_params_form = new RunParamsForm({'el': this.$el.find('.run-parameters')});
-        this.views.script_output = new ScriptOutput({'el': this.$el.find('.script-output-container .panel-body')});
         this.views.retreived_us = new UpdateSetsView({'el': this.$el.find('.retrieved-update-sets .panel-body'), 'mode': 'retrieved'});
         this.views.previewed_us = new UpdateSetsView({'el': this.$el.find('.previewed-update-sets .panel-body'), 'mode': 'previewed'});
         this.views.committed_us = new UpdateSetsView({'el': this.$el.find('.committed-update-sets .panel-body'), 'mode': 'committed'});
@@ -334,7 +357,7 @@ var RunParamsForm = Backbone.View.extend({
         var context = this;
         this.getUpdateSources(); 
         
-        console.log(options)
+        common.debug(options)
         if (_.has(options, 'common')){
             this.common = options.common;
         }
@@ -420,18 +443,29 @@ var RunParamsForm = Backbone.View.extend({
     
     getUpdateSources: function(){
         var context = this;
-        var gr =  new GlideRecord('sys_update_set_source');
-        gr.query( function recResponse(rec) {
-            while (rec.next()) { 
-                common.debug('recieved remote instance record: '+rec.name+','+rec.sys_id);
-                context.$el.find('.remote-host select').append(
-                   '<option value = "'+rec.sys_id+'">'+rec.name+'</option>'
-                );
-            } 
-        });
-         
-       
-        
+        var $target = context.$el.find('.remote-host select');
+        if ($target.length){
+            var gr =  new GlideRecord('sys_update_set_source');
+            gr.query( function recResponse(rec) {
+                var option_count = 0;
+                while (rec.next()) { 
+                    common.debug('recieved remote instance record: '+rec.name+','+rec.sys_id);
+                    context.$el.find('.remote-host select').append(
+                       '<option value = "'+rec.sys_id+'">'+rec.name+'</option>'
+                    );
+                    option_count++;
+                }
+                
+                if (option_count){
+                    $target.prop('disabled', false);
+                }
+                else{
+                    common.clientLog('Error: no remote instance records found. Refer to: http://wiki.servicenow.com/index.php?title=Setting_Up_Team_Development#Defining_Remote_Instances', 'error');
+                    this.markError($target);
+                }                    
+            });
+        }
+
     },
     
     /**
@@ -455,38 +489,33 @@ var RunParamsForm = Backbone.View.extend({
     startDeploy : function(e){
         var context = this;
 
-        var callback = function(response){
-            common.debug('recieved: '+JSON.stringify(response));
-            var data = common.extractJSON(response);
-            if (_.keys(data).length) {
-                if (_.has(data, 'error') && _.isString(data.error) && data.error.length){
-                    common.clientLog('Error: unable to get system datetime: '+ data.error, 'error');
-                }
-                else if ( _.has(data, 'date') && _.has(data, 'time')) {
-                    common.debug(data.datetime);
-                    common.set('START_TIME', data);
-                    PubSub.publish('FETCH_UPDATE_SETS', {'search_params': common.get('search_params')});
-                    PubSub.publish('NAV.SELECT', {'tab_name': 'retrieved'});
-                }
+        /**
+          recieve the timestamp and then begin processing byu calling update set fetch
+          @method callback
+          @param {object} timestamp_obj
+        */
+        var callback = function(timestamp_obj){
+            if (_.keys(timestamp_obj).length && _.has(timestamp_obj, 'date') && _.has(timestamp_obj, 'time')) {
+                common.debug(timestamp_obj);
+                common.set('START_TIME', timestamp_obj);
+                PubSub.publish('FETCH_UPDATE_SETS', {'search_params': common.get('search_params')});
+                PubSub.publish('NAV.SELECT', {'tab_name': 'retrieved'});
             }
-        
         };
 
         if (this.validate()){
             $j(e.target).prop('disabled', true);
             common.set('search_params', this.getFormData());
             PubSub.publish( 'RESET', {'source' : this.type } );
-            var ga = new GlideAjax('Ajax_BulkUpdateSetDeploy');
-            ga.addParam('sysparm_name','getTimeStamp');
-            ga.getXML(callback);
+            common.getSystemTimeStamp(callback);
         }
         
     },
+
     /**
-      TODO:  fix date format for date fields
-      target:  2015-06-03 13:04:22
-      current: 06/09/2016 12:00 AM
-      
+      read the user selections in the form and return object using input name attribute as object keys
+      @method getFormData
+      @return {object}
     */
     getFormData : function(){
         var context = this;
@@ -557,33 +586,14 @@ var RunParamsForm = Backbone.View.extend({
     },
     
     validate : function(){
-        
-        var result = true, context = this;
+        var context = this;
+        var result = true;
         var err_cntr = 0, elem_arr_bad_date = [];
         var date_err = 0;
         //var isDateField = function(el){
             //return ($j(el).closest('.date' ).length > 0 );
         //};
         
-        var markError = function(el){
-            $j(el).closest('.form-group').addClass('has-error').one('focusin', function(){
-                $j(this).removeClass('has-error');
-            });
-        };
-        
-        var markDateError = function(el){
-            $j(el).closest('.form-group').addClass('has-error');
-            // clear error state listener to all date fields - only 1 required
-            // each input has a listener that will clear all date error fields
-            context.$el.find('.input-group.date').each(function(){
-                $j(this).one('focusin', '.form-control', function(){
-                    context.$el.find('.input-group.date').each(function(){
-                        $j(this).parent().removeClass('has-error');
-                    });
-                });    
-            });    
-            
-        };
         
         this.$el.find('.form-group input:not(".name-filter"), .form-group select').each(function(){
             var value = $j(this).val().trim();
@@ -610,7 +620,7 @@ var RunParamsForm = Backbone.View.extend({
                
             } 
             else if ((!context.isDateField(this)) && value.length === 0 ){
-                markError(this);
+                context.markError(this);
                 err_cntr++;
             }
             
@@ -620,7 +630,7 @@ var RunParamsForm = Backbone.View.extend({
         if (err_cntr > 0){
             if (elem_arr_bad_date.length != 1){
                 $j.each(elem_arr_bad_date, function(){
-                    markDateError (this);
+                    context.markDateError (this);
                 });
             }
             
@@ -637,6 +647,33 @@ var RunParamsForm = Backbone.View.extend({
         
     },
     
+    /**    
+      mark an input field (non-date) in error state 
+      @method markDateError
+    */
+    markError : function(el){
+        $j(el).closest('.form-group').addClass('has-error').one('focusin', function(){
+            $j(this).removeClass('has-error');
+        });
+    },
+        
+    /**    
+      mark a date input field in error state 
+      @method markDateError
+    */
+    markDateError : function(el){
+        $j(el).closest('.form-group').addClass('has-error');
+        // clear error state listener to all date fields - only 1 required
+        // each input has a listener that will clear all date error fields
+        context.$el.find('.input-group.date').each(function(){
+            $j(this).one('focusin', '.form-control', function(){
+                context.$el.find('.input-group.date').each(function(){
+                    $j(this).parent().removeClass('has-error');
+                });
+            });    
+        });    
+        
+    },
   
 
 });
@@ -650,6 +687,7 @@ var ScriptCollection = Backbone.Collection.extend({
 
     /**
       query the syslog table for update set deployer log entries after target date
+      @deprecated  proper client side logging makes this unessesary - also current client time vs server time is problematic to resolve
       @method getServerLogEntries
       @param {string} created_after_date
     */
@@ -686,7 +724,7 @@ var ScriptCollection = Backbone.Collection.extend({
     */
     addRecords : function(log_msgs, state){
         
-		if (_.isArray(log_msgs)){
+		if (_.isArray(log_msgs)){ // used with the server log fetch method above
             _.each(log_msgs, function (v,k){
                 var model = new Backbone.Model(v);
 				model.set('state', 'info');
@@ -694,8 +732,13 @@ var ScriptCollection = Backbone.Collection.extend({
             }, this);
         }
         else if (_.isString(log_msgs) && log_msgs.length){
-            // service now DB is pacific time, we are EST time, substract 3 hr
-            var dttm = new moment().subtract(3, 'hours').format(common.get('SNOW_DATE_FORMAT'));
+            /** 
+               @todo this is not very good - need to find a better way to display client script time based on current server time
+               service now DB is pacific time, we are EST time, substract 3 hr
+            */
+            //var dttm = new moment().subtract(3, 'hours').format(common.get('SNOW_DATE_FORMAT'));
+            
+            var dttm = new moment().format(common.get('SNOW_DATE_FORMAT'));
             var model = new Backbone.Model({'created' : dttm, 'message' : log_msgs, 'state' : (state||'info')});
             this.push(model);
         }
@@ -759,9 +802,11 @@ var ScriptOutput = Backbone.View.extend({
         var models = _.clone(this.collection.models);
         models.reverse();
         _.each(models, function(v,k){
-            var $frag = $j('<div>').addClass('log-entry row');
-            $frag.append('<div class="col-xs-4 date">'+v.get('created')+'</div><div class="message '+v.get('state')+' col-xs-8">'+v.get('message')+'</div>')
-            this.$el.append($frag);
+            if (_.isString(v.get('message'))){
+                var $frag = $j('<div>').addClass('log-entry row');
+                $frag.append('<div class="col-xs-4 date">'+v.get('created')+'</div><div class="message '+v.get('state')+' col-xs-8">'+v.get('message')+'</div>')
+                this.$el.append($frag);
+            }
         }, this);
     },
     
@@ -1014,11 +1059,18 @@ var RetreivedUSCollection = UpdateSetCollection.extend({
                 context.reset();
                 context.addRecords(data.update_sets);
                 common.set('remote_update_set_sysids', _.pluck(data.update_sets, 'sys_id'));
-                PubSub.publish( 'RENDER', {'mode': 'retrieved', 'target' : 'update-sets'});
-                PubSub.publish('UPDATE-SET-COUNT', {'count' : context.length, 'target' : 'retrieved'});
-                // fire off the update set preview workers 
-                PubSub.publish('PREVIEW_UPDATE_SETS');
-                
+                if (context.length){
+                    PubSub.publish( 'RENDER', {'mode': 'retrieved', 'target' : 'update-sets'});
+                    // fire off the update set preview workers 
+                    PubSub.publish('PREVIEW_UPDATE_SETS');
+                }
+                else{
+                    var message = 'No New Update Sets Retrieved from Remote';
+                    PubSub.publish('UPDATE-SET-COUNT', {'count' : context.length, 'target' : 'retrieved'});
+                    PubSub.publish( 'PROCESSING-MESSAGE', {'target':'retrieved', 'message': message});
+                    common.clientLog(message, 'warn');
+                    PubSub.publish( 'TOGGLE_START_BUTTON');
+                }
             }
         }
         PubSub.publish( 'PROCESSING-MESSAGE', {'target':'retrieved', 'message': 'Building List of Matching Update Sets...'});
@@ -1037,13 +1089,21 @@ var PreviewedUSCollection = UpdateSetCollection.extend({
     /**
       @method initialize
     */
-    initialize : function(){
+    initialize : function(models, options){
         var context = this;
-        // pubsub listeners
-        PubSub.subscribe( 'PREVIEW_UPDATE_SETS', function(msg, data){
-            context.gaFetch();
-        });
+        var bind_subscribe = true;
         
+        if (_.has(options, 'pubsub-subscribe') && _.isBoolean(options['pubsub-subscribe'])){
+            bind_subscribe = options['pubsub-subscribe'];
+        }
+        
+        
+        if (bind_subscribe){
+            // pubsub listeners
+            PubSub.subscribe( 'PREVIEW_UPDATE_SETS', function(msg, data){
+                context.gaFetch();
+            });
+        }
     },
     
     /**
@@ -1111,26 +1171,36 @@ var PreviewedUSCollection = UpdateSetCollection.extend({
             common.debug('recieved: '+JSON.stringify(data));
             context.reset();
             context.addRecords(data);
-            PubSub.publish( 'RENDER', {'mode': 'previewed', 'target' : 'update-sets'});
-            // set the # of update sets previewed in the list header
-            PubSub.publish('UPDATE-SET-COUNT', {'count' : context.length, 'target' : 'previewed'});
-            // set the previewed tab to visible  
-            PubSub.publish( 'NAV.SELECT', {'tab_name': 'previewed'});
-            
-            // begin the commit process if the search parameter is checked to auto-commit
-            var search_params = common.get('search_params');
-            if (_.has(search_params, 'commit-clean') && search_params['commit-clean'] === 'on'){
-                // wait a moment before starting the commit process
-                setTimeout(function(){
-                    PubSub.publish( 'COMMIT_UPDATE_SETS', {'models': context.filter({'clean-dirty-results':'clean'})});
-                }, 2000);
+            if (context.length){
+                // notify the preview view to initialize the collection of clean update sets
+                PubSub.publish( 'PREVIEW-REPORT-RECIEVED');
+                // render the preview view
+                PubSub.publish( 'RENDER', {'mode': 'previewed', 'target' : 'update-sets'});
+                       
+                // set the previewed tab to visible  
+                PubSub.publish( 'NAV.SELECT', {'tab_name': 'previewed'});
                 
+                // begin the commit process if the search parameter is checked to auto-commit
+                var search_params = common.get('search_params');
+                if (_.has(search_params, 'commit-clean') && search_params['commit-clean'] === 'on'){
+                    // wait a moment before starting the commit process
+                    setTimeout(function(){
+                        PubSub.publish( 'COMMIT_UPDATE_SETS', {'models': context.filter({'clean-dirty-results':'clean'})});
+                    }, 2000);
+                    
+                }
+                else{
+                    // when not doing commit, enable start button in form after this step 
+                    PubSub.publish( 'TOGGLE_START_BUTTON');
+                }
             }
             else{
-                // when not doing commit, enable start button in form after this step 
+                var message = 'No Previewed Update Sets Found After '+common.get('START_TIME').datetime;
+                PubSub.publish('UPDATE-SET-COUNT', {'count' : context.length, 'target' : 'previewed'});
+                PubSub.publish( 'PROCESSING-MESSAGE', {'target':'previewed', 'message': message});
+                common.clientLog(message, 'warn');
                 PubSub.publish( 'TOGGLE_START_BUTTON');
             }
-            
         };
         
         
@@ -1186,6 +1256,48 @@ var PreviewedUSCollection = UpdateSetCollection.extend({
         
         return models;
     },
+    
+    /**
+      @method  moveModelPosition
+      @param {object} model
+      @param {string} direction
+      @param {number} steps number of positions to move the model up or down the collection list
+      @link http://stackoverflow.com/questions/21180123/move-up-down-a-model-in-a-backbone-collection
+    */
+    moveModelPosition : function(model, direction, steps){
+        common.debug('move '+direction+' '+steps+'position the model '+model.get('update_set_name'));
+        var index = this.indexOf(model);
+        common.debug('model index: '+index+', collection length: '+this.models.length)        
+        if (steps > 0){
+            if (direction.toLowerCase() === 'up'){
+                if (index > 0){
+                    this._swap(index, index-1);
+                }
+            }
+            
+            if (direction.toLowerCase() === 'down'){
+                if(index >= 0 && index < (this.models.length-1)) {
+                    this._swap(index, index+1);
+                }
+            }
+            
+            if (steps > 1){
+                steps = steps--;
+                this.moveModelPosition(model, direction, steps);
+            }  
+        }
+    },
+    /**
+      switch a model position in the collection with another model
+      @method _swap
+      @param {number} index of model A
+      @param {number} index of model B
+    */
+    _swap: function (indexA, indexB) {
+        common.debug('swap positions: '+indexA+' with'+indexB);
+        this.models[indexA] = this.models.splice(indexB, 1, this.models[indexA])[0];
+    }
+
 });    
 
 
@@ -1303,20 +1415,30 @@ var CommittedUSCollection = UpdateSetCollection.extend({
             common.debug('recieved: '+JSON.stringify(response));
             var data = common.extractJSON(response);
             if (data && _.keys(data).length){
+                var updated_model_count = 0;
                 // add logs to the collection models
                 _.each(context.models, function(model, index){
                     if (model.get('committed')){
                         var logs = data[model.get('local_sys_id')]; 
                         if (_.isArray(logs) && logs.length){
                             model.set('commit_logs', logs);  
+                            updated_model_count++;
                         }
                     }
                 });
                 
                 common.debug('updated collection after logs fetch: '+JSON.stringify(context.toJSON()));
-                
-                PubSub.publish( 'RENDER', {'mode': 'committed', 'target' : 'update-sets'});
-                PubSub.publish( 'TOGGLE_START_BUTTON');
+                if (updated_model_count){
+                    PubSub.publish( 'RENDER', {'mode': 'committed', 'target' : 'update-sets'});
+                    PubSub.publish( 'TOGGLE_START_BUTTON');
+                }
+                else{
+                    var message = 'No New Update Set Commit Logs Found After '+common.get('START_TIME').datetime;
+                    PubSub.publish('UPDATE-SET-COUNT', {'count' : context.length, 'target' : 'committed'});
+                    PubSub.publish( 'PROCESSING-MESSAGE', {'target':'committed', 'message': message});
+                    common.clientLog(message, 'warn');
+                    PubSub.publish( 'TOGGLE_START_BUTTON');
+                }
             }
         };
         
@@ -1348,6 +1470,12 @@ var CommittedUSCollection = UpdateSetCollection.extend({
 
 var UpdateSetsView = Backbone.View.extend({
 	
+    events: {
+        'click .list-group-item .ordering-controls button' : 'orderingControlsClickHandler',
+        
+    },
+    
+    
 	initialize: function (options) {
         var context = this;
         
@@ -1362,7 +1490,7 @@ var UpdateSetsView = Backbone.View.extend({
             }
             else if (this.mode === 'previewed'){
                 this.collection = new PreviewedUSCollection();
-
+                this.clean_collection = new PreviewedUSCollection(null, {'pubsub-subscribe': false});
             }
             else if (this.mode === 'committed'){
                this.collection = new CommittedUSCollection();
@@ -1431,13 +1559,29 @@ var UpdateSetsView = Backbone.View.extend({
         // expand or collapse the list of collisions under each update set
         PubSub.subscribe( 'PREVIEWED-TOGGLE-COLLISIONS', function(msg, data){
             if (context.mode === 'previewed' ){
-                common.debug('here1 '+JSON.stringify(data));
                 if (_.keys(data).length && _.has(data, 'hide') && _.isBoolean(data.hide)){
                     context.toggleCollisions(data.hide);
                 }
             }
         });
         
+        // populate the "clean" collection from the preview report
+        PubSub.subscribe( 'PREVIEW-REPORT-RECIEVED', function(msg, data){
+            if (context.mode === 'previewed' ){
+                var models = context.collection.filter({'clean-dirty-results' : 'clean'});
+                // holds the updates sets after user has customized the ordering and selection of updates to commit
+                context.clean_collection = new PreviewedUSCollection(models);
+            }
+        });
+        
+        // start the commit process off the customized list of clean update sets
+        PubSub.subscribe( 'GET-SELECTED-CLEAN-UPDATE-SETS', function(msg, data){
+            if (context.mode === 'previewed' && _.keys(data).length && _.has(data, 'filters')){
+                PubSub.publish( 'COMMIT_UPDATE_SETS', {'models': context.clean_collection.filter(_.omit(data.filters, 'clean-dirty-results'))});
+            }
+        });
+        
+
               
         // pubsub listeners
         PubSub.subscribe( 'RENDER', function(msg, data){
@@ -1455,9 +1599,51 @@ var UpdateSetsView = Backbone.View.extend({
             }
         });
         
+        
+        
 
     },
     
+    
+    /**
+      notify the clean update set collection to reorder the update set list
+      @method orderingControlsClickHandler
+    */ 
+    orderingControlsClickHandler : function(e){
+        common.debug('button click to order results')
+        if (this.mode === 'previewed'){
+            var $target = $j(e.target);
+            if ($target.prop('tagName').toLowerCase() !== 'button'){
+                $target = $j(e.target).closest('button');
+            }
+            if ($target.length){
+                var attr = $target.attr('data-action');
+                var remote_sys_id = $target.closest('.list-group-item').attr('data-sys-id');
+                if (_.isString(attr) && _.isString(remote_sys_id)){
+                    common.debug('item: '+remote_sys_id+' - '+attr);
+                    var model = this.clean_collection.findWhere({'update_set_sys_id': remote_sys_id});
+                    common.debug(JSON.stringify(model.toJSON()))
+                    switch(attr.toLowerCase()) {
+                        case 'up':
+                        case 'down':
+                            // re-order the item in the collection up/down 1 position
+                            this.clean_collection.moveModelPosition(model, attr.toLowerCase(), 1);
+                        break;
+                        case 'remove':
+                            
+                            var answer = confirm("Are you sure you want to remove this update set?");
+                            if (answer){
+                                // remove item from the clean collections
+                                this.clean_collection.remove(model);
+
+                            }
+                        break;    
+                    }
+                    this.render();
+                }
+            }
+        }
+    },
     
     /**
       clear collection and render
@@ -1467,6 +1653,9 @@ var UpdateSetsView = Backbone.View.extend({
     */
     reset: function(silent){
         this.collection.reset(null);
+        if (this.clean_collection){
+            this.clean_collection.reset(null);
+        }
         this.render(silent);  
         this.$el.find('.panel-title .count').html(''); 
         var $target = this.$el.closest('.panel').find('.panel-title .count');
@@ -1475,6 +1664,21 @@ var UpdateSetsView = Backbone.View.extend({
         }        
     },
     
+    /**
+      is the preview controls configured to display only clean results
+      @method showCleanUpdates
+      @returns {boolean}
+    */
+    showCleanUpdates : function(){
+        var result = false;
+        if (this.mode === 'previewed'){
+            var filter = this._get('filter');
+            if (_.has(filter, 'clean-dirty-results') && filter['clean-dirty-results'] === 'clean'){
+                result = true;
+            }
+        }
+        return result;
+    },    
     
     /**
       @method render
@@ -1488,15 +1692,37 @@ var UpdateSetsView = Backbone.View.extend({
         this.$el.empty();
         var template_key = this.mode+this.list_template_postfix;
         var tmplatefx = _.template(this.templates[template_key]);
-        //console.log(JSON.stringify(this.collection.models))
         
-        var models = this.collection.filter(this._get('filter'));
+        
+        var models = [];
+        common.debug('render only clean? '+this.showCleanUpdates())
+        if (this.showCleanUpdates()){
+            models = this.clean_collection.filter(_.omit(this._get('filter'), 'clean-dirty-results'));
+        }
+        else{
+            models = this.collection.filter(this._get('filter'));
+        }
+        console.log('render models: '+JSON.stringify(models))
+        
+        
         
         this.$el.append(tmplatefx({'models': models}));
-      
+        if (models.length){
+           PubSub.publish('UPDATE-SET-COUNT', {'count' : models.length, 'target' : this.mode}); 
+        }
         
         if (this.mode === 'previewed' && !silent){
-            PubSub.publish( 'RENDER', {'target': 'preview-controls', 'count': models.length});
+            
+            var $el = this.$el.find('.module-header');
+            var collision_filter_mode = 'all';
+            if ($el.length && _.isString($el.attr('data-collision-filter-mode'))){
+                collision_filter_mode = $el.attr('data-collision-filter-mode');
+            }
+            PubSub.publish( 'RENDER', {
+                'target': 'preview-controls',
+                'count': models.length,
+                'collision_filter_mode': collision_filter_mode,
+            });
             
         }    
 
@@ -1548,9 +1774,11 @@ var PreviewControlsView = Backbone.View.extend({
     events: {
         'change .preview-controls .show-text-filter input' : 'textFilterCheckHandler',
         'change .preview-controls .minimize-collisions input' : 'toggleCollisionsExpanded',
-        'change .preview-controls .collision-filter select' : 'getFilterOptions',
+        'change .preview-controls .collision-filter select' : 'collisionFilterChangeHandler',
         'keyup .text-filter input' : 'getFilterOptions',
+        'paste .text-filter input' : 'getFilterOptions',
         'click .print-icon' : 'printClickHandler',
+        'click .preview-controls .commit-clean button' : 'commitClickHandler',
     },
     
     
@@ -1560,6 +1788,8 @@ var PreviewControlsView = Backbone.View.extend({
         
         this.template_name = 'preview_controls';
         this.getTemplate(this.template_name);
+        
+               
         
         // pubsub listeners
         PubSub.subscribe( 'RENDER', function(msg, data){
@@ -1577,7 +1807,12 @@ var PreviewControlsView = Backbone.View.extend({
     render : function(data){
 		common.debug(this.el);
         this.$el.empty();
-
+        
+        data.auto_commit = (common.get('search_params')['commit-clean']||'')
+        if (!_.has(data, 'collision_filter_mode')){
+            data.collision_filter_mode = 'all';
+        }
+        
         var tmplatefx = _.template(this.templates[this.template_name]);
         //console.log(JSON.stringify(this.collection.models))
         
@@ -1585,6 +1820,17 @@ var PreviewControlsView = Backbone.View.extend({
 
 	},
     
+    /**
+      @method commitClickHandler
+    */
+    commitClickHandler : function(e){
+        var answer = confirm("Commit all the listed clean update sets?");
+        if (answer){
+            common.debug('DO COMMIT')   
+            PubSub.publish('GET-SELECTED-CLEAN-UPDATE-SETS', {'filters': this.getFilterOptions()});
+        }
+    },
+   
     /**
       request the currently displayed preview report rendered to the printable area hidden div
       @method printClickHandler
@@ -1616,7 +1862,7 @@ var PreviewControlsView = Backbone.View.extend({
         setTimeout(function(){
              mywindow.print();
             //mywindow.close();
-        }, 1000);
+        }, 1300);
        
     },
         
@@ -1653,30 +1899,54 @@ var PreviewControlsView = Backbone.View.extend({
     },
     
     /**
+      configure controls when collision select changes, and notify collection(s) to update
+      @method collisionFilterChangeHandler
+    */
+    collisionFilterChangeHandler : function(e){
+        var $target = this.$el.closest('.panel');
+        if ($target.length){
+            $target.attr('data-collision-filter-mode', $j(e.target).val());
+            if ($j(e.target).val().toLowerCase() === 'clean'){
+                this.$el.find('.commit-clean button').prop('disabled',false);
+            }
+            else{
+                this.$el.find('.commit-clean button').prop('disabled',true);
+            }
+        }
+        this.getFilterOptions();  
+       
+    },
+    
+    /**
       collection the currently selected filter options
       @method getFilterOptions
     */
-    getFilterOptions : function(){
-        var filters = {};
-        this.$el.find('form .filter').each(function(){
-            var tag_name = $j(this).prop('tagName').toLowerCase();
-            var name_attr = $j(this).attr('name').toLowerCase();
-            if ( tag_name === 'input'){
-                var elem_type = $j(this).attr('type').toLowerCase();
-                if (elem_type === 'checkbox'){
-                    filters[name_attr] = $j(this).prop('checked');
+    getFilterOptions : function(e){
+        if (e && _.has(e, 'type') && e.type.indexOf('paste') >= 0 ){
+            $j(this).trigger('keyup');
+        }
+        else{
+            var filters = {};
+            this.$el.find('form .filter').each(function(){
+                var tag_name = $j(this).prop('tagName').toLowerCase();
+                var name_attr = $j(this).attr('name').toLowerCase();
+                if ( tag_name === 'input'){
+                    var elem_type = $j(this).attr('type').toLowerCase();
+                    if (elem_type === 'checkbox'){
+                        filters[name_attr] = $j(this).prop('checked');
+                    }
+                    else if (elem_type === 'text' ){
+                        filters[name_attr] = $j(this).val();
+                    }
                 }
-                else if (elem_type === 'text' ){
+                else if (tag_name === 'select'){
                     filters[name_attr] = $j(this).val();
                 }
-            }
-            else if (tag_name === 'select'){
-                filters[name_attr] = $j(this).val();
-            }
-            
-        });
-        common.debug('filters: '+JSON.stringify(filters));
-        PubSub.publish( 'PREVIEWED-FILTER', {'filter_options': filters});
+                
+            });
+            common.debug('filters: '+JSON.stringify(filters));
+            PubSub.publish( 'PREVIEWED-FILTER', {'filter_options': filters});
+        }
     },
 });
 
