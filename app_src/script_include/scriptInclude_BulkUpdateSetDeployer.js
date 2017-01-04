@@ -29,7 +29,8 @@ BulkUpdateSetDeployer.prototype = {
     
         // make underscore.js available for server side scripting
         gs.include('underscorejs.min'); 
-        
+        // j2js for converting glide record objects to javascript
+        gs.include("j2js");
         
         // internal data storage
         this.config = {};
@@ -139,148 +140,7 @@ BulkUpdateSetDeployer.prototype = {
         
     },
     
-    /**
-      used when this is called from a background script
-      @method start
-      todo: verify still fully functional after july 2016 updates
-    */
-    start : function(obj){
-         var json = new JSON();
-        var context = this;
-        if (_.isObject(obj) && _.keys(obj).length){
-            
-            if (_.has(obj, 'remote')){
-
-                this.config.set('time_start', gs.nowNoTZ()); // current time in GMT
-                this.config.set('transaction_id', gs.generateGUID());
-                gs.log('started: '+this.config.get('time_start')+', '+this.config.get('transaction_id'));
-                var remote_gr = this.getRemoteSystemRecord(obj.remote);
-                if (_.has(remote_gr, 'sys_id')){
-                    gs.print('found');
-                    var worker_id = this.retrieveRemoteUpdateSets(remote_gr.getDisplayValue('sys_id'));
-                    gs.print('remote update set fetch - worker id:'+ worker_id);
-                    
-                    if (this.waitForWorkerComplete(worker_id).toLowerCase() === 'success'){
-                        gs.print('finished fetching update sets');
-                        // preview update sets
-                        var preview_workers = this.previewUpdateSets( this.config.get('time_start'));
-                        gs.print('workers: '+preview_workers.toString());
-                        gs.print('worker count: '+this.getWorkerCountByTransaction(this.config.get('transaction_id')));
-                        // loop through the workers, and as they complete, generate a report
-                        var total_workers = preview_workers.length;
-                        var completed_workers = this.getCompletedWorkerCountByTransaction(this.config.get('transaction_id'));
-                        var processed_update_sets = [];
-                        var counter = 0;
-                        var reports = [];
-                        while (processed_update_sets.length < total_workers){
-                            var wait_for_workers = false;
-                            completed_workers = this.getCompletedWorkerCountByTransaction(this.config.get('transaction_id'));
-                            if (completed_workers > 0){
-                                if (completed_workers > processed_update_sets.length){
-                                    // get the first completed worker from the list
-                                    var update_set_sys_id = this.getUpdateSetSysIdFromPreviewWorkerByTransaction(this.config.get('transaction_id'), processed_update_sets);
-                                    if (JSUtil.notNil(update_set_sys_id)){
-                                        processed_update_sets.push(update_set_sys_id);
-                                        gs.log('completed: '+update_set_sys_id);
-                                        // create a report for the update set
-                                        reports.push(this.getUpdatesetPreviewReport(update_set_sys_id));
-                                        
-                                        // set the retrieved update set to previewed
-                                        // for now - lets just assume this works, no error check
-                                        // disabled - do this in the update set preview report call above
-                                        /*
-                                        var gr = new GlideRecord('sys_remote_update_set');
-                                        if (gr.get(update_set_sys_id)){
-                                            gr.state = 'previewed';
-                                            gr.autoSysFields(false);
-                                            gr.update();
-                                        }
-                                        */
-                                        
-                                       
-                                        gs.print(json.encode(reports));
-                                        
-                                        
-                                       
-                                         
-                                    }
-                                }
-                                else{
-                                   wait_for_workers = true;
-                                }
-                            }
-                            else{
-                                wait_for_workers = true;
-                            }
-                                
-                            if (wait_for_workers) {
-                               gs.print('**waiting for preview workers to complete: '+gs.nowDateTime()); 
-                               this.waitSec(this.config.get('WORKER_WAIT_MS')); 
-                               
-                            }
-                            
-                            if (counter < this.config.get('MAX_WORKER_LOOP')){
-                                counter ++;
-                            }
-                            else{
-                                gs.log('Error: maximum loop count exceeded while waiting for completed update set preview workers','start::'+this.type);
-                                break;
-                            }
-                            
-                        }
-                        
-                        
-                        if (reports.length){
-                            
-                            
-                            
-                            // update set tally
-                            gs.log('total Update Sets '+reports.length);          
-                                        
-                            // how many have error:
-                            gs.log('update sets with errors: ');            
-                                        
-                            // how many are clean   
-                            gs.log('clean update sets: ');
-                            
-                            var clean_update_sets = [];
-                             // 1. loop through data structure, 
-                            // 2  for each update set, find those where collision array is empty
-                            _.each(reports, function(v, k){
-                                gs.print(json.encode(v))
-                                if (_.has(v, 'collisions') && _.has(v, 'clean_updates')){
-
-                                    if (_.isArray(v.collisions) && v.collisions.length === 0 && _.isNumber(v.clean_updates) && v.clean_updates > 0){
-                                        gs.print('here: '+k)
-                                        clean_update_sets.push(v.update_set_sys_id)
-                                    }
-                                } 
-                            });
-                            
-                            if (clean_update_sets.length){
-                                var workers = [];
-                                // commit these
-                                _.each(clean_update_sets, function(v, k){
-                                    workers.push(this.commitRemoteUpdateSet(v));
-                                }, this);
-                                gs.print(workers.toString());
-                            }
-                            
-                        }
-
-                    }
-                    else{
-                        gs.log('Error: for progress worker "'+worker_id+'", a complete state was not detected', 'start::'+this.type);
-                    }
-                }
-                else{
-                    gs.print('Error: no remote system found matching name: '+obj.remote);
-                }
-                
-            }
-           
-        }
-    },
+    
     
     /**
       set the state on the update set to 'previewed'
@@ -302,84 +162,95 @@ BulkUpdateSetDeployer.prototype = {
     /**
       read the contents of the update set preview
       @method getUpdatesetPreviewReport
-      @param {string} remote_update_set_sys_id
+      @param {string} local_sys_id   system sys_id of the retrieved update set 
     */
-    getUpdatesetPreviewReport : function(remote_update_set_sys_id){
-        var report = {};
-        var gr;
-        if (JSUtil.notNil(remote_update_set_sys_id)){
-            var cntr = 0;
-            gr = new GlideRecord('sys_update_preview_xml');
-            gr.addQuery('sys_created_on', '>=', this.config.get('time_start'));
-            gr.addQuery('remote_update.remote_update_set', remote_update_set_sys_id);
-            gr.addNotNullQuery('problem_type');
-            gr.query();
-            while (gr.next()){
-                if (cntr === 0){
-                    //gs.print('---------Preview Report: '+remote_update_set_sys_id+'-------------')
-                    report.update_set_name = gr.remote_update.remote_update_set.getDisplayValue('name');
-                    report.update_set_sys_id = gr.remote_update.remote_update_set.sys_id+'';
-                    report.dirty_updates = 0;
-                    report.clean_updates = 0;
-                    report.collisions = [];
-                }
-                // issue - duplicates may exists if run more than once a day
-                // proposal:  generte timestamp before preview worker begin
-                // find all matching preview reports newer than timestamp
+    getUpdatesetPreviewReport : function(local_sys_id){
+        var report = {};    
+        if (JSUtil.notNil(local_sys_id) && this.isValidSysId(local_sys_id)){
+            // 1 get update set name
+            var gr1 = new GlideRecord('sys_remote_update_set');
+            if (gr1.get('sys_id', local_sys_id)){
+                var update_set_name =  j2js(gr1.name);
+                report = {
+                    'local_sys_id':  local_sys_id,
+                    'update_set_name': update_set_name,
+                    'errors' : 0,
+                    'warnings' : 0,
+                    'clean' : 0,
+                    'collisions' : []
+                    
+                };    
                 
-                // disposition has the anaysis info: https://dev13778.service-now.com/nav_to.do?uri=sys_update_preview_xml.do?sys_id=6a3b40a70f33d600a95eb97ce1050ef5
-                // build in script report
-                var collision = {};
-                collision.disposition = gr.getDisplayValue('disposition');
-                collision.problem_type = gr.getDisplayValue('problem_type');
-                collision.description = this.getPreviewProblemDescription(gr.remote_update.remote_update_set, gr.remote_update);
-                collision.target_sys_id = gr.remote_update+'';
-                collision.target_name = gr.remote_update.getDisplayValue('target_name');
-                collision.sys_id = gr.sys_id+'';
-                report.collisions.push(collision);
-                /*
-                gs.print('Disposition: '+gr.getDisplayValue('disposition'))
-                gs.print('problem type: '+gr.getDisplayValue('problem_type'))
-                gs.print('description: '+this.getPreviewProblemDescription(gr.remote_update.remote_update_set, gr.remote_update))
-                gs.print('target name: '+gr.remote_update.getDisplayValue('target_name'))
-                gs.print('update set: '+gr.remote_update.remote_update_set.getDisplayValue('name'))
-                gs.print('********')
-                */
-                /*
-                disposition
-                remote_update.type
-                remote_update.target_name
-                remote_update.remote_update_set.name
-                problem_type
-                */
-                cntr ++;
+                // process the update set preview records into a javascript object
+                gr2 = new GlideRecord('sys_update_preview_xml');
+                gr2.addQuery('remote_update.remote_update_set.sys_id', local_sys_id);
 
-            }
-            if (_.keys(report).length > 0){
-                report.dirty_updates = cntr;
-            }    
-            
-            // get total clean dispositions from the update set
-            gr = new GlideRecord('sys_update_preview_xml');
-            gr.addQuery('sys_created_on', '>=', this.config.get('time_start'));
-            gr.addQuery('remote_update.remote_update_set', remote_update_set_sys_id);
-            gr.addNullQuery('problem_type');
-            gr.query();
-            if (gr.next()){
-                if (_.keys(report).length === 0){
-                    report.update_set_name = gr.remote_update.remote_update_set.getDisplayValue('name');
-                    report.update_set_sys_id = gr.remote_update.remote_update_set.sys_id+'';
-                    report.collisions = [];
-                    report.dirty_updates = 0;
+                gs.print('sys_update_preview_xml query: '+gr2.getEncodedQuery())
+                gr2.query();
+                while (gr2.next()){    
+                                    
+                    if (JSUtil.nil(gr2.problem_type)){
+                        // clean update
+                        report.clean++;
+                    }
+                    else{
+                        var remote_update_sys_id = j2js(gr2.remote_update);
+                        
+                        var update_set_collisions = this.getUpdateSetPreviewProblems();
+                        
+                        var collision = {
+                            'disposition' : j2js(gr2.disposition), // action type
+                            'remote_update_sys_id' : j2js(gr2.remote_update.sys_id),
+                            'target_name' : gr2.remote_update.getDisplayValue('target_name'),
+                            'problems' : this.getUpdateSetPreviewProblems(j2js(gr2.remote_update.sys_id), local_sys_id),
+                        }
+                                               
+  
+                        // map reduce the array of problems into a count for warnings and errors
+                        collision.errors = _.reduce(collision.problems, function(memo, obj){
+                            if (_.has(obj, 'type') && obj.type === 'error'){
+                                return (memo + 1);
+                            }
+                            else{
+                                return memo;
+                            }
+                        }, 0);
+                        
+                        report.errors += collision.errors;
+                       
+                        collision.warnings =_.reduce(collision.problems, function(memo, obj){
+                            if (_.has(obj, 'type') && obj.type === 'warning'){
+                                return (memo + 1);
+                            }
+                            else{
+                                return memo;
+                            }
+                        }, 0);
+                        
+                        report.warnings += collision.warnings;
+                        
+                        report.collisions.push(collision);
+                    }
+                    
                 }
-                report.clean_updates = gr.getRowCount();
+                if (gr2.getRowCount() == 0){
+                    // was the report already submitted?
+                    gr3 = new GlideRecord('sys_update_preview_xml');
+                    gr3.addQuery('remote_update.remote_update_set.sys_id', local_sys_id);
+                    gr3.addNotNullQuery('proposed_action');   // user has addressed the issues
+                    gr3.query();
+                    while (gr3.next()){
+                       if (JSUtil.nil(gr3.problem_type)){
+                            // clean update
+                            report.clean++;
+                        }
+                    }
+                    if (gr3.getRowCount() == 0){
+                        report = {};
+                    }    
+                }    
+               
             }
-
-            
-            
-            //if (gr.getRowCount() > 0){
-                //gs.print('---------end report-------------')
-            //}    
         }
         return report;
         
@@ -387,21 +258,29 @@ BulkUpdateSetDeployer.prototype = {
     
     /**
     
-      @method getPreviewProblemDescription
+      @method getUpdateSetPreviewProblems
+      @param {string} remote_update_sys_id
+      @param {string} remote_update_set_sys_id
     */
-    getPreviewProblemDescription : function(update_set_sys_id, target_name_sys_id){
-        var description = '';
-        if (JSUtil.notNil(update_set_sys_id) && JSUtil.notNil(target_name_sys_id)){
+    getUpdateSetPreviewProblems : function(remote_update_sys_id, remote_update_set_sys_id){
+        var problems = [];
+        if ((_.isString(remote_update_sys_id) && this.isValidSysId(remote_update_sys_id)) && (_.isString(remote_update_set_sys_id) && this.isValidSysId(remote_update_set_sys_id))){
             var gr = new GlideRecord('sys_update_preview_problem');
-            gr.addQuery('sys_created_on', '>=', this.config.get('time_start'));
-            gr.addQuery('remote_update_set', update_set_sys_id);
-            gr.addQuery('remote_update', target_name_sys_id);
+            gr.addQuery('remote_update.sys_id', remote_update_sys_id);
+            gr.addQuery('remote_update_set.sys_id', remote_update_set_sys_id);
+            gs.print('sys_update_preview_problem query: '+gr.getEncodedQuery())
             gr.query();
-            if (gr.next()){
-                description = gr.getDisplayValue('description');
+            while (gr.next()){
+                var problem = {
+                    'description' : j2js(gr.description),
+                    'type': j2js(gr.type),
+                    'problem_sys_id' : j2js(gr.sys_id),
+                };
+                problems.push(problem)        
             }
         }
-        return description;
+       
+        return problems;
     },
     
     
@@ -525,20 +404,51 @@ BulkUpdateSetDeployer.prototype = {
       datetime format: YYYY-MM-DD HH:SS:MS
       @param {string} contains_text - comm delim list of words to match the update sets on (each word is an OR query)
       @param {string} not_contains_text - contains_text - comm delim list of words to NOT match on for the the update set search (each word is an OR query)
-
+      @param {array|string} local_sys_ids array of retrieved update set local sys_ids to target for preview
       @returns array
     */
-    previewUpdateSets : function(created_datetime, release_datetime, contains_text, not_contains_text){
+    previewUpdateSets : function(created_datetime, release_datetime, contains_text, not_contains_text, local_sys_ids){
         var context = this;
         var preview_worker_ids = [];
-        var update_set_sysids = this.getRetrievedUpdateSetSysIds( created_datetime, release_datetime, contains_text, not_contains_text);
-        this.config.set('transaction_id', gs.generateGUID());
-        _.each(update_set_sysids, function(v,k){
-            var worker = context.previewUpdateSet(v);
-            if (JSUtil.notNil(worker)){
-                preview_worker_ids.push(worker);
+        var update_set_sysids = [];
+        
+        try{
+            if (_.isArray(local_sys_ids) || _.isString(local_sys_ids)){    
+                // validate sysid parameter
+                var gr = new GlideRecord('sys_remote_update_set');
+                if (_.isArray(local_sys_ids) && local_sys_ids.length){
+                    gr.addQuery('sys_id', 'IN', local_sys_ids.join(','));
+                }
+                else if (_.isString(local_sys_ids) && local_sys_ids && this.isValidSysId(local_sys_ids)){
+                    // only 1 sys id
+                    gr.addQuery('sys_id', local_sys_ids);
+                }
+                else{
+                    throw new Error('local sys ids parameter is empty');
+                }
+                gr.query();
+                while(gr.next()){
+                    // add sys_ids to to the array that were found in the sys_remote_update_set table
+                    update_set_sysids.push(j2js(gr.sys_id));
+                }
             }
-        });
+            else{
+                // query for update set sys is based on filter conditions date created, release date, and description string matching
+                update_set_sysids = this.getRetrievedUpdateSetSysIds( created_datetime, release_datetime, contains_text, not_contains_text);
+
+            }
+            this.config.set('transaction_id', gs.generateGUID());
+            _.each(update_set_sysids, function(v,k){
+                var worker = context.previewUpdateSet(v);
+                if (JSUtil.notNil(worker)){
+                    preview_worker_ids.push(worker);
+                }
+            });
+        }    
+        catch(e){
+           gs.log('Error '+e.message+' - previewUpdateSets', this.type);
+        }    
+        
         
         return preview_worker_ids;
     },
@@ -697,6 +607,145 @@ BulkUpdateSetDeployer.prototype = {
         return update_set_sys_ids;
     },
     
+    
+    /**
+      create a glide query, and execute then returns the glide record result set as an array of objects
+      @method getRemoteUpdateSets
+      @param {string} column
+      @param {string} value
+      @returns array
+    */
+    
+    getRemoteUpdateSets : function(column, values){
+        var result = [];
+        var arr;
+        try{
+            if (_.isString(column) && column.length && (_.isString(values) || _.isArray(values))){
+                var gr;
+                if (_.isString(values)){
+                    arr = [values];
+                }
+                else{
+                    arr = values;
+                }    
+                var found = 0;  
+                _.each(arr, function(v,k){
+                    gr = new GlideRecord('sys_remote_update_set');
+                    gr.addQuery(column, v);
+                    gr.query();
+                    //gs.print(k+': '+gr.getEncodedQuery());
+                    while (gr.next()){  
+                        found++;
+                        result.push({
+                            'remote_sys_id' :  j2js(gr.remote_sys_id),   
+                            'local_sys_id' :  j2js(gr.sys_id),   
+                            'name' :  j2js(gr.name),   
+                            'state' :  j2js(gr.state),   
+                            'created_on' : j2js(gr.sys_created_on),  
+                            'matched_on' :  column,   
+                        });
+                    }
+                    if (found === 0){
+                        gr = new GlideRecord('sys_remote_update_set');
+                        gr.addQuery(column, 'CONTAINS' , v);
+                        //gs.print(k+': '+gr.getEncodedQuery());
+                        gr.query();
+                        while (gr.next()){  
+                            result.push({
+                                'remote_sys_id' :  j2js(gr.remote_sys_id),   
+                                'local_sys_id' :  j2js(gr.sys_id),   
+                                'name' :  j2js(gr.name),   
+                                'state' :  j2js(gr.state),   
+                                'created_on' : j2js(gr.sys_created_on),  
+                                'matched_on' :  column,   
+                            });
+                        }
+                    }    
+                });
+   
+            }
+        }
+        catch(e){
+           gs.log('Error: '+e.message+' - getRemoteUpdateSetGlideRecords'); 
+        }
+        return result;
+    },
+    
+    
+    /**
+        for an array of update set sys_ids, validate if each has a matching record int he retrieved update set table
+        @method checkRetrievedStatus
+        @param {array} sys_ids  array of remote or origin sysids
+        @param {array} update_set_names  array of update set names
+        @TODO create fx for the queries below and clean up this fx...its too big
+        
+    */
+    
+    checkRetrievedStatus: function(obj){
+        var result = [];
+                
+        var update_sets_by_name = [];
+        var update_sets_by_sysid = [];
+        var not_found = [];
+        // query by names first
+        if (_.has(obj, 'names') && _.isArray(obj.names)){
+            update_sets_by_name = update_sets_by_name.concat(this.getRemoteUpdateSets('name', obj.names));
+        }
+        if (update_sets_by_name.length < obj.names.length && _.has(obj, 'sys_ids')){
+            // query by sys_ids
+            if ( _.isArray(obj.sys_ids)){
+                update_sets_by_sysid = update_sets_by_sysid.concat(this.getRemoteUpdateSets('remote_sys_id', obj.sys_ids));
+                not_found = _.difference(obj.sys_ids, update_sets_by_sysid.pluck('remote_sys_id'));
+                if (not_found.length){
+                    update_sets_by_sysid = update_sets_by_sysid.concat(this.getRemoteUpdateSets('origin_sys_id', not_found));
+                }
+            }
+        }
+        //  deduplicate by grouping by name, then 
+        //  grabbing duplicate update set with highest state
+        //  ( 3 - "committed", 2 - "previewed", 1 - "loaded")
+        var grouped_by_name = _.groupBy(update_sets_by_sysid.concat(update_sets_by_name), function(v){
+                return v.name;
+            });
+        var update_set_names = _.keys(grouped_by_name)
+        var committed, previewed, loaded;
+        
+        for (var i=0; i < update_set_names.length; i++){
+            var us_name = update_set_names[i];
+            //gs.print(us_name);
+            if ( _.isArray(grouped_by_name[us_name])){
+                if(grouped_by_name[us_name].length === 1){
+                    //gs.print('ok')
+                    result.push(grouped_by_name[us_name][0]);
+                }
+                else{
+                    //gs.print('duplicates found')
+                 
+                    // loop through each duplicates list
+                    // if the states are different grab the one with highest state 
+                    committed = _.findWhere(grouped_by_name[us_name], {'state':'committed'});
+                    previewed = _.findWhere(grouped_by_name[us_name], {'state':'previewed'});
+                    loaded =  _.findWhere(grouped_by_name[us_name], {'state':'loaded'});
+
+                    if (committed){
+                        result.push(committed);
+                    }
+                    else if(previewed){
+                        result.push(previewed);
+                    }
+                    else if(loaded){
+                        result.push(loaded);
+                    }
+                    
+                }
+            }
+          
+        } 
+        
+        return result;
+    },
+    
+    
     /**
       @method isValidDateTime
       @param {string} date in format YYYY-MM-DD
@@ -839,7 +888,7 @@ BulkUpdateSetDeployer.prototype = {
             gr.addQuery('state','loaded');
 
             gr.orderBy('name');
-            this.addLogMessage('retrieved query: '+gr.getEncodedQuery())
+            this.addLogMessage('retrieved query: '+gr.getEncodedQuery());
             gr.query();
             while (gr.next()){  
                 var record = {
@@ -849,6 +898,36 @@ BulkUpdateSetDeployer.prototype = {
                     'remote_sys_id': gr.origin_sys_id+'',
                     'origin_sys_id' : gr.remote_sys_id+'',
                     'sys_id' : gr.sys_id+'',
+                };
+                
+                update_sets.push(record);
+            }
+        }
+        return update_sets;
+    },
+    
+    /**
+        get the list of retrieved update sets matching an array of remote sys_ids
+        @method getRetrievedUpdateSetsBySysID
+        @param {string} remote_sys_ids
+            */
+    getRetrievedUpdateSetsBySysID : function(remote_sys_ids){
+        var update_sets = [];
+        if (_.isArray(remote_sys_ids) && remote_sys_ids.length){
+            var gr = new GlideRecord('sys_remote_update_set');
+            gr.addQuery('remote_sys_id', 'IN', remote_sys_ids.join(','));
+            gr.orderBy('name');
+            this.addLogMessage('retrieved by sysid query: '+gr.getEncodedQuery());
+            gr.query();
+            while (gr.next()){  
+                var record = {
+                    'name': j2js(gr.name),
+                    'description': j2js(gr.description),
+                    'loaded': gr.getDisplayValue('sys_created_on'),
+                    'state' : j2js(gr.state),
+                    'remote_sys_id': j2js(gr.remote_sys_id),
+                    'origin_sys_id' : j2js(gr.origin_sys_id),
+                    'local_sys_id' : j2js(gr.sys_id),
                 };
                 
                 update_sets.push(record);
@@ -960,7 +1039,7 @@ BulkUpdateSetDeployer.prototype = {
         gr.query();
 		gs.print(gr.getEncodedQuery());
         if ( gr.next() ) {
-			gs.print('here')
+		
             var worker = this._getGlideUpdateSetWorker();
 			// inserts the new local update set and updates the remote update set accordingly
 			var lus = new GlideRecord('sys_update_set');
@@ -973,7 +1052,7 @@ BulkUpdateSetDeployer.prototype = {
 			
 			worker.setUpdateSetSysId(lus_sysid);
 			worker.setProgressName("Commit update set: "+gr.name);
-			worker.setBackground(true)
+			worker.setBackground(true);
 			worker.start();
 			worker.setProgressMessage('Transaction ID: '+this.config.get('transaction_id')+', Remote Update Set: '+remote_updateset_sys_id);
                        
@@ -984,7 +1063,7 @@ BulkUpdateSetDeployer.prototype = {
             result.remote_sys_id = remote_updateset_sys_id;
             result.update_set_name = gr.name.getDisplayValue();
             
-            gs.print('here2')
+        
            
             // fire off progress worker to set the state field to ignore on matching local update sets with same name
             var worker2 = new GlideScriptedProgressWorker();
@@ -1018,7 +1097,7 @@ BulkUpdateSetDeployer.prototype = {
 			while (pgr.next()) {
 				if (pgr.proposed_action != "skip")
 					continue;
-				var temp = new GlideRecord("sys_update_xml")
+				var temp = new GlideRecord("sys_update_xml");
 				temp.query("sys_id", pgr.remote_update);
 				if (temp.next())
 					xgr.addQuery("name","!=", temp.name +"");
@@ -1046,4 +1125,157 @@ BulkUpdateSetDeployer.prototype = {
 	},
     
     type: 'BulkUpdateSetDeployer',
+    
+    /**
+      used when this is called from a background script
+      
+      this function has not been tested since major updates to this script over summer 2016.
+      code disabled for the time being, but let here if anyone want to see the process we used to run
+      the autodeployer via script runner
+      the biggest bug in this script is the bulk preview.  Previews need to be done one at atime
+      with the commit completed between each preview as the sequence up update sets is processed
+      @method start
+      
+      todo: verify still fully functional after july 2016 updates
+    */
+    /*
+    start : function(obj){
+         var json = new JSON();
+        var context = this;
+        if (_.isObject(obj) && _.keys(obj).length){
+            
+            if (_.has(obj, 'remote')){
+
+                this.config.set('time_start', gs.nowNoTZ()); // current time in GMT
+                this.config.set('transaction_id', gs.generateGUID());
+                gs.log('started: '+this.config.get('time_start')+', '+this.config.get('transaction_id'));
+                var remote_gr = this.getRemoteSystemRecord(obj.remote);
+                if (_.has(remote_gr, 'sys_id')){
+                    gs.print('found');
+                    var worker_id = this.retrieveRemoteUpdateSets(remote_gr.getDisplayValue('sys_id'));
+                    gs.print('remote update set fetch - worker id:'+ worker_id);
+                    
+                    if (this.waitForWorkerComplete(worker_id).toLowerCase() === 'success'){
+                        gs.print('finished fetching update sets');
+                        // preview update sets
+                        var preview_workers = this.previewUpdateSets( this.config.get('time_start'));
+                        gs.print('workers: '+preview_workers.toString());
+                        gs.print('worker count: '+this.getWorkerCountByTransaction(this.config.get('transaction_id')));
+                        // loop through the workers, and as they complete, generate a report
+                        var total_workers = preview_workers.length;
+                        var completed_workers = this.getCompletedWorkerCountByTransaction(this.config.get('transaction_id'));
+                        var processed_update_sets = [];
+                        var counter = 0;
+                        var reports = [];
+                        while (processed_update_sets.length < total_workers){
+                            var wait_for_workers = false;
+                            completed_workers = this.getCompletedWorkerCountByTransaction(this.config.get('transaction_id'));
+                            if (completed_workers > 0){
+                                if (completed_workers > processed_update_sets.length){
+                                    // get the first completed worker from the list
+                                    var update_set_sys_id = this.getUpdateSetSysIdFromPreviewWorkerByTransaction(this.config.get('transaction_id'), processed_update_sets);
+                                    if (JSUtil.notNil(update_set_sys_id)){
+                                        processed_update_sets.push(update_set_sys_id);
+                                        gs.log('completed: '+update_set_sys_id);
+                                        // create a report for the update set
+                                        reports.push(this.getUpdatesetPreviewReport(update_set_sys_id));
+                                        
+                                        // set the retrieved update set to previewed
+                                        // for now - lets just assume this works, no error check
+                                        // disabled - do this in the update set preview report call above
+                                        
+                                        //var gr = new GlideRecord('sys_remote_update_set');
+                                       //if (gr.get(update_set_sys_id)){
+                                       //     gr.state = 'previewed';
+                                       //     gr.autoSysFields(false);
+                                       //     gr.update();
+                                       // }
+                                       
+                                        
+                                       
+                                        gs.print(json.encode(reports));
+                                        
+                                        
+                                       
+                                         
+                                    }
+                                }
+                                else{
+                                   wait_for_workers = true;
+                                }
+                            }
+                            else{
+                                wait_for_workers = true;
+                            }
+                                
+                            if (wait_for_workers) {
+                               gs.print('**waiting for preview workers to complete: '+gs.nowDateTime()); 
+                               this.waitSec(this.config.get('WORKER_WAIT_MS')); 
+                               
+                            }
+                            
+                            if (counter < this.config.get('MAX_WORKER_LOOP')){
+                                counter ++;
+                            }
+                            else{
+                                gs.log('Error: maximum loop count exceeded while waiting for completed update set preview workers','start::'+this.type);
+                                break;
+                            }
+                            
+                        }
+                        
+                        
+                        if (reports.length){
+                            
+                            
+                            
+                            // update set tally
+                            gs.log('total Update Sets '+reports.length);          
+                                        
+                            // how many have error:
+                            gs.log('update sets with errors: ');            
+                                        
+                            // how many are clean   
+                            gs.log('clean update sets: ');
+                            
+                            var clean_update_sets = [];
+                             // 1. loop through data structure, 
+                            // 2  for each update set, find those where collision array is empty
+                            _.each(reports, function(v, k){
+                                gs.print(json.encode(v))
+                                if (_.has(v, 'collisions') && _.has(v, 'clean_updates')){
+
+                                    if (_.isArray(v.collisions) && v.collisions.length === 0 && _.isNumber(v.clean_updates) && v.clean_updates > 0){
+                                        gs.print('here: '+k)
+                                        clean_update_sets.push(v.update_set_sys_id)
+                                    }
+                                } 
+                            });
+                            
+                            if (clean_update_sets.length){
+                                var workers = [];
+                                // commit these
+                                _.each(clean_update_sets, function(v, k){
+                                    workers.push(this.commitRemoteUpdateSet(v));
+                                }, this);
+                                gs.print(workers.toString());
+                            }
+                            
+                        }
+
+                    }
+                    else{
+                        gs.log('Error: for progress worker "'+worker_id+'", a complete state was not detected', 'start::'+this.type);
+                    }
+                }
+                else{
+                    gs.print('Error: no remote system found matching name: '+obj.remote);
+                }
+                
+            }
+           
+        }
+    },
+    */
+    
 };

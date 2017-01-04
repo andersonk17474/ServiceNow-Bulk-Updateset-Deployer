@@ -3,7 +3,8 @@ DeleteRetrievedUpdateSets.prototype = {
     initialize: function() {
         // make underscore.js available for server side scripting
         gs.include('underscorejs.min'); 
-        
+        // convert java to js objects
+        gs.include("j2js");
         /**
           polyfill trim method
           @LINK https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
@@ -17,11 +18,12 @@ DeleteRetrievedUpdateSets.prototype = {
 
     type: 'DeleteRetrievedUpdateSets',
     
-    process:function (created, release_date, contains_text, not_contains_text) {
-		var json = new JSON();
-        var matching_records = this.getMatching(created, release_date, contains_text, not_contains_text);
+    process:function (created, release_date, contains_text, not_contains_text, sys_ids) {
+        var json = new JSON();
+        var matching_records = this.getMatching(created, release_date, contains_text, not_contains_text, sys_ids);
+        gs.log('for delete, matching record count: '+matching_records.length, this.type)
         if (matching_records.length){
-            this.deleteMatching(created, release_date, contains_text, not_contains_text);
+            this.deleteMatching(created, release_date, contains_text, not_contains_text, sys_ids);
             gs.log('Deleted Retreived Update Set Records: '+json.encode(matching_records), this.type);
         }
 	},
@@ -34,10 +36,11 @@ DeleteRetrievedUpdateSets.prototype = {
       datetime format: YYYY-MM-DD HH:SS:MS
       @param {string} contains_text - comm delim list of words to match the update sets on (each word is an OR query)
       @param {string} not_contains_text - contains_text - comm delim list of words to NOT match on for the the update set search (each word is an OR query)
-
+      @param {string} sys_ids comma delim list of remote sys_ids to match for delete  
     */
-    'getGlideRecord': function(created, release_date, contains_text, not_contains_text){
-        if (this.isValidDateTime(created) || this.isValidDateTime(release_date)){
+    'getGlideRecord': function(created, release_date, contains_text, not_contains_text, sys_ids){
+        if (this.isValidDateTime(created) || this.isValidDateTime(release_date) || _.isString(j2js(sys_ids))){
+            gs.log('get glide record', this.type)
             var gr = new GlideRecord('sys_remote_update_set');
             
             if (JSUtil.notNil(created) && created.length){
@@ -57,6 +60,10 @@ DeleteRetrievedUpdateSets.prototype = {
                 // create a filter for name DOES NOT contain any of the the comma delim string of matching words
                 gr = this.addGlideTextFilters(gr, not_contains_text, 'name', false);
             }
+            if (JSUtil.notNil(sys_ids) ){
+                // create a filter for name DOES NOT contain any of the the comma delim string of matching words
+                gr.addQuery('remote_sys_id', 'IN', sys_ids); 
+            }
             gr.addQuery('state','IN','loaded,previewed,committed');
             gr.orderByDesc('sys_created_on');
             return gr;
@@ -70,14 +77,14 @@ DeleteRetrievedUpdateSets.prototype = {
       @param {string} release_date delete all records that match the release date
       @param {string} contains_text - comm delim list of words to match the update sets on (each word is an OR query)
       @param {string} not_contains_text - contains_text - comm delim list of words to NOT match on for the the update set search (each word is an OR query)
-
+      @param {string} sys_ids comma delim list of remote sys_ids to match for delete  
     */
-    'deleteMatching' : function(created, release_date, contains_text, not_contains_text){
+    'deleteMatching' : function(created, release_date, contains_text, not_contains_text, sys_ids){
         var deleted = 0;
-        var gr = this.getGlideRecord(created, release_date, contains_text, not_contains_text)
+        var gr = this.getGlideRecord(created, release_date, contains_text, not_contains_text, sys_ids)
         if (JSUtil.notNil(gr)){           
             gr.query();
-            //gs.log(gr.getEncodedQuery(),'delete retrieved');
+            //gs.log('delete query: '+gr.getEncodedQuery(),'delete retrieved');
             if (gr.next()){
                 deleted = gr.getRowCount();
                 gr.deleteMultiple();
@@ -94,12 +101,13 @@ DeleteRetrievedUpdateSets.prototype = {
       @param {string} release_date delete all records that match the release date
       @param {string} contains_text - comm delim list of words to match the update sets on (each word is an OR query)
       @param {string} not_contains_text - contains_text - comm delim list of words to NOT match on for the the update set search (each word is an OR query)
-
+      @param {string} sys_ids comma delim list of remote sys_ids to match for delete  
     */
-    'getMatching' : function(created, release_date, contains_text, not_contains_text){
+    'getMatching' : function(created, release_date, contains_text, not_contains_text, sys_ids){
         var result = [], obj = {};
-        var gr = this.getGlideRecord(created, release_date, contains_text, not_contains_text);
+        var gr = this.getGlideRecord(created, release_date, contains_text, not_contains_text, sys_ids);
         if (JSUtil.notNil(gr)){   
+            gs.log('for delete, get matching query: '+gr.getEncodedQuery(), this.type);
             gr.query();
             while (gr.next()){
                 obj = {};
