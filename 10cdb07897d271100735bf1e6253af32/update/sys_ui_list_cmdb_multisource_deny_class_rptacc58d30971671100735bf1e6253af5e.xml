@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update>
+    <sys_ui_list parent="" relationship="" sys_domain="global" table="cmdb_multisource_deny_class" version="2" view="RPTacc58d30971671100735bf1e6253af5e">
+        <sys_ui_list_element action="INSERT_OR_UPDATE">
+            <average_value>false</average_value>
+            <element>active</element>
+            <list_id display_value="cmdb_multisource_deny_class" element="NULL" name="cmdb_multisource_deny_class" parent="NULL" relationship="NULL" sys_domain="global" view="2cc58d30971671100735bf1e6253afc3">acc58d30971671100735bf1e6253afc4</list_id>
+            <max_value>false</max_value>
+            <min_value>false</min_value>
+            <position>0</position>
+            <sum>false</sum>
+            <sys_created_by>mmoorthi-adm</sys_created_by>
+            <sys_created_on>2023-11-01 17:38:01</sys_created_on>
+            <sys_id>28c58d30971671100735bf1e6253afc5</sys_id>
+            <sys_mod_count>0</sys_mod_count>
+            <sys_updated_by>mmoorthi-adm</sys_updated_by>
+            <sys_updated_on>2023-11-01 17:38:01</sys_updated_on>
+        </sys_ui_list_element>
+        <sys_ui_list_element action="INSERT_OR_UPDATE">
+            <average_value>false</average_value>
+            <element>class</element>
+            <list_id display_value="cmdb_multisource_deny_class" element="NULL" name="cmdb_multisource_deny_class" parent="NULL" relationship="NULL" sys_domain="global" view="2cc58d30971671100735bf1e6253afc3">acc58d30971671100735bf1e6253afc4</list_id>
+            <max_value>false</max_value>
+            <min_value>false</min_value>
+            <position>1</position>
+            <sum>false</sum>
+            <sys_created_by>mmoorthi-adm</sys_created_by>
+            <sys_created_on>2023-11-01 17:38:01</sys_created_on>
+            <sys_id>a8c58d30971671100735bf1e6253afc5</sys_id>
+            <sys_mod_count>0</sys_mod_count>
+            <sys_updated_by>mmoorthi-adm</sys_updated_by>
+            <sys_updated_on>2023-11-01 17:38:01</sys_updated_on>
+        </sys_ui_list_element>
+        <sys_ui_list action="INSERT_OR_UPDATE">
+            <average_value>false</average_value>
+            <element/>
+            <max_value>false</max_value>
+            <min_value>false</min_value>
+            <name>cmdb_multisource_deny_class</name>
+            <parent/>
+            <position/>
+            <relationship/>
+            <sum>false</sum>
+            <sys_class_name>sys_ui_list</sys_class_name>
+            <sys_created_by>mmoorthi-adm</sys_created_by>
+            <sys_created_on>2023-11-01 17:38:01</sys_created_on>
+            <sys_domain>global</sys_domain>
+            <sys_domain_path>/</sys_domain_path>
+            <sys_id>acc58d30971671100735bf1e6253afc4</sys_id>
+            <sys_mod_count>0</sys_mod_count>
+            <sys_name>cmdb_multisource_deny_class</sys_name>
+            <sys_package display_value="Github" source="x_570529_github">10cdb07897d271100735bf1e6253af32</sys_package>
+            <sys_policy/>
+            <sys_scope display_value="Github">10cdb07897d271100735bf1e6253af32</sys_scope>
+            <sys_update_name>sys_ui_list_cmdb_multisource_deny_class_RPTacc58d30971671100735bf1e6253af5e</sys_update_name>
+            <sys_updated_by>mmoorthi-adm</sys_updated_by>
+            <sys_updated_on>2023-11-01 17:38:01</sys_updated_on>
+            <sys_user/>
+            <view display_value="Rptacc58d30971671100735bf1e6253af5e" name="RPTacc58d30971671100735bf1e6253af5e">2cc58d30971671100735bf1e6253afc3</view>
+            <view_name/>
+        </sys_ui_list>
+    </sys_ui_list>
+</record_update>
